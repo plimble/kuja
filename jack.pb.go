@@ -12,7 +12,7 @@
 		AddReq
 		AddResp
 */
-package server
+package kuja
 
 import proto "github.com/golang/protobuf/proto"
 
