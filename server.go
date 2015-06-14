@@ -67,7 +67,7 @@ func (server *Server) Run(addr string) {
 	http.ListenAndServe(addr, server)
 }
 
-func getServerMethod(s string) (string, string) {
+func getServiceMethod(s string) (string, string) {
 	if strings.HasPrefix(s, "/") {
 		s = s[1:]
 	}
@@ -93,7 +93,7 @@ func (server *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	serviceName, methodName := getServerMethod(req.URL.Path)
+	serviceName, methodName := getServiceMethod(req.URL.Path)
 
 	if serviceName == "" || methodName == "" {
 		w.WriteHeader(404)
