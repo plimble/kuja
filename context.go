@@ -18,14 +18,23 @@ type Ctx struct {
 	encoder      encoder.Encoder
 	returnValues []reflect.Value
 	snappy       bool
+	logError     LogErrorFunc
+	ServiceID    string
+	ServiceName  string
+	MethodName   string
+	isResp       bool
 }
 
 func (ctx *Ctx) Next() error {
 	if ctx.index+1 == len(ctx.handlers) {
-		return serve(ctx)
+		if err := serve(ctx); err != nil && !ctx.isResp {
+			respError(err, ctx)
+		}
 	} else if ctx.index+1 < len(ctx.handlers) {
 		ctx.index++
-		return ctx.handlers[ctx.index](ctx, ctx.w, ctx.req)
+		if err := ctx.handlers[ctx.index](ctx, ctx.w, ctx.req); err != nil && !ctx.isResp {
+			respError(err, ctx)
+		}
 	}
 
 	return nil

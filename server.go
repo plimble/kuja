@@ -13,7 +13,7 @@ import (
 )
 
 type Handler func(ctx *Ctx, w http.ResponseWriter, r *http.Request) error
-type LogErrorFunc func(service, method string, status int, err error)
+type LogErrorFunc func(serviceID, service, method string, status int, err error)
 
 type Server struct {
 	pool       sync.Pool
@@ -25,8 +25,8 @@ type Server struct {
 	logError   LogErrorFunc
 }
 
-func defaulLogErr(service, method string, status int, err error) {
-	log.Panicln("Error on %s %s %d %s", service, method, status, err)
+func defaulLogErr(serviceID, service, method string, status int, err error) {
+	log.Printf("Error %s %s %s %d %s", serviceID, service, method, status, err)
 }
 
 func NewServer() *Server {
@@ -41,6 +41,8 @@ func NewServer() *Server {
 			ReqMetadata:  make(Metadata),
 			RespMetadata: make(Metadata),
 			returnValues: make([]reflect.Value, 1),
+			logError:     server.logError,
+			isResp:       false,
 		}
 	}
 
@@ -132,28 +134,33 @@ func (server *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	ctx.rcvr = s.rcvr
 	ctx.encoder = server.encoder
 	ctx.snappy = server.snappy
+	ctx.ServiceID = s.id
+	ctx.ServiceName = serviceName
+	ctx.MethodName = methodName
 
 	if len(s.handlers) > 0 {
-		if err := s.handlers[0](ctx, w, req); err != nil {
-			server.respError(serviceName, methodName, err, ctx)
+		if err := s.handlers[0](ctx, w, req); err != nil && !ctx.isResp {
+			respError(err, ctx)
 		}
 	} else {
-		if err := serve(ctx); err != nil {
-			server.respError(serviceName, methodName, err, ctx)
+		if err := serve(ctx); err != nil && !ctx.isResp {
+			respError(err, ctx)
 		}
 	}
 	server.pool.Put(ctx)
 }
 
-func (server *Server) respError(service, method string, err error, ctx *Ctx) {
+func respError(err error, ctx *Ctx) {
 	if errs, ok := err.(Errors); ok {
+		ctx.isResp = true
+		go ctx.logError(ctx.ServiceID, ctx.ServiceName, ctx.MethodName, errs.Status(), err)
 		ctx.w.WriteHeader(errs.Status())
 		ctx.w.Write([]byte(errs.Error()))
-		server.logError(service, method, errs.Status(), err)
 	} else {
+		ctx.isResp = true
+		go ctx.logError(ctx.ServiceID, ctx.ServiceName, ctx.MethodName, 500, err)
 		ctx.w.WriteHeader(500)
 		ctx.w.Write([]byte(err.Error()))
-		server.logError(service, method, 500, err)
 	}
 }
 
@@ -180,12 +187,14 @@ func serve(ctx *Ctx) error {
 	}
 
 	if ctx.snappy {
+		ctx.isResp = true
 		ctx.w.Header().Set("Snappy", "true")
 		ctx.w.WriteHeader(200)
 		data, _ := ctx.encoder.Marshal(replyv.Interface())
 		data, _ = snappy.Encode(nil, data)
 		ctx.w.Write(data)
 	} else {
+		ctx.isResp = true
 		ctx.w.WriteHeader(200)
 		ctx.encoder.Encode(ctx.w, replyv.Interface())
 	}

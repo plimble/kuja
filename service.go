@@ -2,6 +2,7 @@ package kuja
 
 import (
 	"errors"
+	"github.com/satori/go.uuid"
 	"log"
 	"reflect"
 	"unicode"
@@ -13,6 +14,7 @@ import (
 var typeOfError = reflect.TypeOf((*error)(nil)).Elem()
 
 type service struct {
+	id       string
 	name     string                 // name of service
 	rcvr     reflect.Value          // receiver of methods for the service
 	typ      reflect.Type           // type of the receiver
@@ -78,6 +80,7 @@ func (server *Server) register(rcvr interface{}, name string, useName bool, h []
 	}
 	server.serviceMap[s.name] = s
 
+	s.id = s.name + "-" + uuid.NewV1().String()
 	s.handlers = append(s.handlers, server.middleware...)
 	s.handlers = append(s.handlers, h...)
 
