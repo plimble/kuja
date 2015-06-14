@@ -3,7 +3,9 @@ package kuja
 import (
 	"github.com/golang/snappy/snappy"
 	"github.com/plimble/kuja/encoder"
+	"github.com/plimble/kuja/encoder/json"
 	"io"
+	"log"
 	"net/http"
 	"reflect"
 	"strings"
@@ -11,14 +13,7 @@ import (
 )
 
 type Handler func(ctx *Ctx, w http.ResponseWriter, r *http.Request) error
-
-type service struct {
-	name     string                 // name of service
-	rcvr     reflect.Value          // receiver of methods for the service
-	typ      reflect.Type           // type of the receiver
-	method   map[string]*methodType // registered methods
-	handlers []Handler
-}
+type LogErrorFunc func(service, method string, status int, err error)
 
 type Server struct {
 	pool       sync.Pool
@@ -27,11 +22,18 @@ type Server struct {
 	serviceMap map[string]*service
 	encoder    encoder.Encoder
 	snappy     bool
+	logError   LogErrorFunc
+}
+
+func defaulLogErr(service, method string, status int, err error) {
+	log.Panicln("Error on %s %s %d %s", service, method, status, err)
 }
 
 func NewServer() *Server {
 	server := &Server{
 		serviceMap: make(map[string]*service),
+		encoder:    json.NewEncoder(),
+		logError:   defaulLogErr,
 	}
 
 	server.pool.New = func() interface{} {
@@ -133,23 +135,25 @@ func (server *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	if len(s.handlers) > 0 {
 		if err := s.handlers[0](ctx, w, req); err != nil {
-			server.respError(err, ctx)
+			server.respError(serviceName, methodName, err, ctx)
 		}
 	} else {
 		if err := serve(ctx); err != nil {
-			server.respError(err, ctx)
+			server.respError(serviceName, methodName, err, ctx)
 		}
 	}
 	server.pool.Put(ctx)
 }
 
-func (server *Server) respError(err error, ctx *Ctx) {
+func (server *Server) respError(service, method string, err error, ctx *Ctx) {
 	if errs, ok := err.(Errors); ok {
 		ctx.w.WriteHeader(errs.Status())
 		ctx.w.Write([]byte(errs.Error()))
+		server.logError(service, method, errs.Status(), err)
 	} else {
 		ctx.w.WriteHeader(500)
 		ctx.w.Write([]byte(err.Error()))
+		server.logError(service, method, 500, err)
 	}
 }
 

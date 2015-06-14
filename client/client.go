@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/golang/snappy/snappy"
 	"github.com/plimble/kuja/encoder"
+	"github.com/plimble/kuja/encoder/json"
 	"github.com/plimble/kuja/registry"
 	"io/ioutil"
 	"net/http"
@@ -28,13 +29,15 @@ func New(url string) *Client {
 		url = url[:len(url)-1]
 	}
 	return &Client{
-		method: &Direct{url},
+		method:  &Direct{url},
+		encoder: json.NewEncoder(),
 	}
 }
 
 func NewWithRegistry(r registry.Registry) *Client {
 	return &Client{
-		method: &Discovery{r},
+		method:  &Discovery{r},
+		encoder: json.NewEncoder(),
 	}
 }
 

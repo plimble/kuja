@@ -12,6 +12,14 @@ import (
 // because Typeof takes an empty interface value. This is annoying.
 var typeOfError = reflect.TypeOf((*error)(nil)).Elem()
 
+type service struct {
+	name     string                 // name of service
+	rcvr     reflect.Value          // receiver of methods for the service
+	typ      reflect.Type           // type of the receiver
+	method   map[string]*methodType // registered methods
+	handlers []Handler
+}
+
 type methodType struct {
 	method      reflect.Method
 	ArgType     reflect.Type
