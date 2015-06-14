@@ -12,16 +12,15 @@ import (
 )
 
 type Method interface {
-	GetEndpoint(service, method string) string
+	GetAddress(service, method string) (string, error)
 }
 
 type HeaderFunc func(header http.Header)
-type QueryFunc func(header http.Header)
 
 type Client struct {
-	method     Method
-	encoder    encoder.Encoder
-	headerFunc HeaderFunc
+	method        Method
+	encoder       encoder.Encoder
+	DefaultHeader http.Header
 }
 
 func New(url string) *Client {
@@ -33,29 +32,41 @@ func New(url string) *Client {
 	}
 }
 
-func NewWithRegistry(r registry.Registry) {
-
+func NewWithRegistry(r registry.Registry) *Client {
+	return &Client{
+		method: &Discovery{r},
+	}
 }
 
 func (c *Client) Encoder(enc encoder.Encoder) {
 	c.encoder = enc
 }
 
-func (c *Client) Header(headerFunc HeaderFunc) {
-	c.headerFunc = headerFunc
-}
-
 func (c *Client) Call(service, method string, reqv interface{}, respv interface{}, header http.Header) (int, error) {
 	var err error
+
+	addr, err := c.method.GetAddress(service, method)
+	if err != nil {
+		return 0, err
+	}
+
 	data, err := c.encoder.Marshal(reqv)
 	if err != nil {
 		return 0, err
 	}
 	buf := bytes.NewBuffer(data)
 
-	req, err := http.NewRequest("POST", c.method.GetEndpoint(service, method), buf)
+	req, err := http.NewRequest("POST", addr, buf)
 	if err != nil {
 		return 0, err
+	}
+
+	for name, val := range c.DefaultHeader {
+		req.Header.Set(name, val[0])
+	}
+
+	for name, val := range header {
+		req.Header.Set(name, val[0])
 	}
 
 	resp, err := http.DefaultClient.Do(req)

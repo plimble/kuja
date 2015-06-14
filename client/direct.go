@@ -4,6 +4,6 @@ type Direct struct {
 	url string
 }
 
-func (d *Direct) GetEndpoint(service, method string) string {
-	return concat(d.url, "/", service, "/", method)
+func (d *Direct) GetAddress(service, method string) (string, error) {
+	return concat(d.url, "/", service, "/", method), nil
 }
