@@ -28,7 +28,7 @@ func BenchmarkGetServiceMethod(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		getServerMethod("/ServiceTest/Add")
+		getServerMethod("/ServiceTest/Add/")
 	}
 }
 
@@ -46,7 +46,7 @@ func TestServer(t *testing.T) {
 		return nil
 	})
 
-	s.Register(&ServiceTest{})
+	s.Service(&ServiceTest{})
 	s.Encoder(encoder)
 
 	reqData := &AddReq{1, 2}
@@ -60,6 +60,7 @@ func TestServer(t *testing.T) {
 	resp := &AddResp{}
 
 	encoder.Unmarshal(w.Body.Bytes(), resp)
+
 	pretty.Println(w.Body.String())
 	pretty.Println(resp)
 }
@@ -77,7 +78,7 @@ func BenchmarkServerProto(b *testing.B) {
 
 		return nil
 	})
-	s.Register(&ServiceTest{})
+	s.Service(&ServiceTest{})
 	s.Encoder(encoder)
 
 	reqData := &AddReq{1, 2}
@@ -108,7 +109,7 @@ func BenchmarkServerJson(b *testing.B) {
 
 		return nil
 	})
-	s.Register(&ServiceTest{})
+	s.Service(&ServiceTest{})
 	s.Encoder(encoder)
 
 	reqData := &AddReq{1, 2}
@@ -139,7 +140,7 @@ func BenchmarkServerGoGoProto(b *testing.B) {
 
 		return nil
 	})
-	s.Register(&ServiceTest{})
+	s.Service(&ServiceTest{})
 	s.Encoder(encoder)
 
 	reqData := &AddReq{1, 2}

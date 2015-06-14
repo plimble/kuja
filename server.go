@@ -1,6 +1,7 @@
 package kuja
 
 import (
+	"github.com/golang/snappy/snappy"
 	"github.com/plimble/kuja/encoder"
 	"io"
 	"net/http"
@@ -25,6 +26,7 @@ type Server struct {
 	mu         sync.Mutex // protects the serviceMap
 	serviceMap map[string]*service
 	encoder    encoder.Encoder
+	snappy     bool
 }
 
 func NewServer() *Server {
@@ -47,7 +49,11 @@ func (server *Server) Use(h ...Handler) {
 	server.middleware = append(server.middleware, h...)
 }
 
-func (server *Server) Register(service interface{}, h ...Handler) {
+func (server *Server) Snappy(enable bool) {
+	server.snappy = enable
+}
+
+func (server *Server) Service(service interface{}, h ...Handler) {
 	if err := server.register(service, "", false, h); err != nil {
 		panic(err)
 	}
@@ -123,26 +129,27 @@ func (server *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	ctx.w = w
 	ctx.rcvr = s.rcvr
 	ctx.encoder = server.encoder
+	ctx.snappy = server.snappy
 
 	if len(s.handlers) > 0 {
-		err := s.handlers[0](ctx, w, req)
-		server.checkError(err, ctx)
+		if err := s.handlers[0](ctx, w, req); err != nil {
+			server.respError(err, ctx)
+		}
 	} else {
-		err := serve(ctx)
-		server.checkError(err, ctx)
+		if err := serve(ctx); err != nil {
+			server.respError(err, ctx)
+		}
 	}
 	server.pool.Put(ctx)
 }
 
-func (server *Server) checkError(err error, ctx *Ctx) {
-	if err != nil {
-		if errs, ok := err.(Errors); ok {
-			ctx.w.WriteHeader(errs.Status())
-			ctx.w.Write([]byte(errs.Error()))
-		} else {
-			ctx.w.WriteHeader(500)
-			ctx.w.Write([]byte(err.Error()))
-		}
+func (server *Server) respError(err error, ctx *Ctx) {
+	if errs, ok := err.(Errors); ok {
+		ctx.w.WriteHeader(errs.Status())
+		ctx.w.Write([]byte(errs.Error()))
+	} else {
+		ctx.w.WriteHeader(500)
+		ctx.w.Write([]byte(err.Error()))
 	}
 }
 
@@ -158,7 +165,6 @@ func serve(ctx *Ctx) error {
 	}
 
 	function := ctx.mt.method.Func
-
 	ctx.returnValues = function.Call([]reflect.Value{ctx.rcvr, ctx.mt.prepareContext(ctx), argv, replyv})
 
 	if ctx.returnValues[0].Interface() != nil {
@@ -166,7 +172,14 @@ func serve(ctx *Ctx) error {
 	}
 
 	ctx.w.WriteHeader(200)
-	ctx.encoder.Encode(ctx.w, replyv.Interface())
+	if ctx.snappy {
+		ctx.RespMetadata["Snappy"] = "true"
+		data, _ := ctx.encoder.Marshal(replyv.Interface())
+		data, _ = snappy.Encode(nil, data)
+		ctx.w.Write(data)
+	} else {
+		ctx.encoder.Encode(ctx.w, replyv.Interface())
+	}
 
 	return nil
 }

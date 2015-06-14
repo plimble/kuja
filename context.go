@@ -17,6 +17,7 @@ type Ctx struct {
 	rcvr         reflect.Value
 	encoder      encoder.Encoder
 	returnValues []reflect.Value
+	snappy       bool
 }
 
 func (ctx *Ctx) Next() error {
