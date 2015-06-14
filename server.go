@@ -171,6 +171,10 @@ func serve(ctx *Ctx) error {
 		return ctx.returnValues[0].Interface().(error)
 	}
 
+	for name, val := range ctx.RespMetadata {
+		ctx.w.Header().Set(name, val)
+	}
+
 	if ctx.snappy {
 		ctx.w.Header().Set("Snappy", "true")
 		ctx.w.WriteHeader(200)
