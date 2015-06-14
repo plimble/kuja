@@ -12,40 +12,47 @@ import (
 	"strings"
 )
 
+//go:generate mockery -name Client
+
 type Method interface {
 	GetAddress(service, method string) (string, error)
 }
 
+type Client interface {
+	Call(service, method string, reqv interface{}, respv interface{}, header http.Header) (int, error)
+	Encoder(enc encoder.Encoder)
+}
+
 type HeaderFunc func(header http.Header)
 
-type Client struct {
+type DefaultClient struct {
 	method        Method
 	encoder       encoder.Encoder
 	DefaultHeader http.Header
 }
 
-func New(url string) *Client {
+func New(url string) *DefaultClient {
 	if strings.HasPrefix(url, "/") {
 		url = url[:len(url)-1]
 	}
-	return &Client{
+	return &DefaultClient{
 		method:  &Direct{url},
 		encoder: json.NewEncoder(),
 	}
 }
 
-func NewWithRegistry(r registry.Registry) *Client {
-	return &Client{
+func NewWithRegistry(r registry.Registry) *DefaultClient {
+	return &DefaultClient{
 		method:  &Discovery{r},
 		encoder: json.NewEncoder(),
 	}
 }
 
-func (c *Client) Encoder(enc encoder.Encoder) {
+func (c *DefaultClient) Encoder(enc encoder.Encoder) {
 	c.encoder = enc
 }
 
-func (c *Client) Call(service, method string, reqv interface{}, respv interface{}, header http.Header) (int, error) {
+func (c *DefaultClient) Call(service, method string, reqv interface{}, respv interface{}, header http.Header) (int, error) {
 	var err error
 
 	addr, err := c.method.GetAddress(service, method)
