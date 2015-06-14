@@ -3,6 +3,7 @@ package client
 import (
 	"bytes"
 	"errors"
+	"github.com/golang/snappy/snappy"
 	"github.com/plimble/kuja/encoder"
 	"github.com/plimble/kuja/registry"
 	"io/ioutil"
@@ -45,6 +46,7 @@ func (c *Client) Header(headerFunc HeaderFunc) {
 }
 
 func (c *Client) Call(service, method string, reqv interface{}, respv interface{}, header http.Header) (int, error) {
+	var err error
 	data, err := c.encoder.Marshal(reqv)
 	if err != nil {
 		return 0, err
@@ -61,17 +63,24 @@ func (c *Client) Call(service, method string, reqv interface{}, respv interface{
 		return 0, err
 	}
 
+	respData, err := ioutil.ReadAll(resp.Body)
+	resp.Body.Close()
+	if err != nil {
+		return 0, err
+	}
+
 	if resp.StatusCode != 200 {
-		errData, err := ioutil.ReadAll(resp.Body)
-		resp.Body.Close()
+		return resp.StatusCode, errors.New(string(respData))
+	}
+
+	if resp.Header.Get("Snappy") == "true" {
+		respData, err = snappy.Decode(nil, respData)
 		if err != nil {
 			return 0, err
 		}
-
-		return resp.StatusCode, errors.New(string(errData))
 	}
 
-	err = c.encoder.Decode(resp.Body, respv)
+	err = c.encoder.Unmarshal(respData, respv)
 	resp.Body.Close()
 	if err != nil {
 		return 0, err

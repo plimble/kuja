@@ -28,6 +28,7 @@ func (s *ServiceTest) Add(ctx *kuja.Ctx, req *AddReq, resp *AddResp) error {
 func TestDirectClient(t *testing.T) {
 	k := kuja.NewServer()
 	k.Encoder(json.NewEncoder())
+	k.Snappy(true)
 	k.Service(&ServiceTest{})
 
 	server := httptest.NewServer(k)

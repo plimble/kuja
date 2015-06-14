@@ -171,13 +171,14 @@ func serve(ctx *Ctx) error {
 		return ctx.returnValues[0].Interface().(error)
 	}
 
-	ctx.w.WriteHeader(200)
 	if ctx.snappy {
-		ctx.RespMetadata["Snappy"] = "true"
+		ctx.w.Header().Set("Snappy", "true")
+		ctx.w.WriteHeader(200)
 		data, _ := ctx.encoder.Marshal(replyv.Interface())
 		data, _ = snappy.Encode(nil, data)
 		ctx.w.Write(data)
 	} else {
+		ctx.w.WriteHeader(200)
 		ctx.encoder.Encode(ctx.w, replyv.Interface())
 	}
 
