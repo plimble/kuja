@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/Sirupsen/logrus"
 	"github.com/plimble/kuja"
 	"github.com/plimble/kuja/encoder/json"
 	"github.com/plimble/kuja/registry/etcd"
@@ -21,6 +22,11 @@ func main() {
 	s.Snappy(true)
 	s.Encoder(json.NewEncoder())
 	s.Registry(etcd.NewRegistry("/jack", []string{"http://plimble.com:4001"}))
+
+	logrus.SetFormatter(&logrus.TextFormatter{
+		FullTimestamp:    true,
+		DisableTimestamp: false,
+	})
 
 	s.Run(":3000", 0)
 }

@@ -1,13 +1,13 @@
 package kuja
 
 import (
+	log "github.com/Sirupsen/logrus"
 	"github.com/golang/snappy/snappy"
 	"github.com/plimble/kuja/encoder"
 	"github.com/plimble/kuja/encoder/json"
 	"github.com/plimble/kuja/registry"
 	"gopkg.in/tylerb/graceful.v1"
 	"io"
-	"log"
 	"net/http"
 	"reflect"
 	"strings"
@@ -30,7 +30,7 @@ type Server struct {
 }
 
 func defaulLogErr(serviceID, service, method string, status int, err error) {
-	log.Printf("Error %s %s %s %d %s", serviceID, service, method, status, err)
+	log.Infof("Error %s %s %s %d %s", serviceID, service, method, status, err)
 }
 
 func NewServer() *Server {
@@ -75,12 +75,16 @@ func (server *Server) Encoder(enc encoder.Encoder) {
 	server.encoder = enc
 }
 
+func (server *Server) LogError(fn LogErrorFunc) {
+	server.logError = fn
+}
+
 func (server *Server) Run(addr string, timeout time.Duration) {
 	server.start(addr)
 	srv := &graceful.Server{
 		Timeout: timeout,
 		ShutdownInitiated: func() {
-			log.Println("stop server")
+			log.Infoln("stop server")
 			server.stop()
 		},
 		Server: &http.Server{
@@ -89,7 +93,7 @@ func (server *Server) Run(addr string, timeout time.Duration) {
 		},
 	}
 
-	log.Println("start server")
+	log.Infoln("start server")
 	srv.ListenAndServe()
 }
 
