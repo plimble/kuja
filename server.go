@@ -4,12 +4,15 @@ import (
 	"github.com/golang/snappy/snappy"
 	"github.com/plimble/kuja/encoder"
 	"github.com/plimble/kuja/encoder/json"
+	"github.com/plimble/kuja/registry"
+	"gopkg.in/tylerb/graceful.v1"
 	"io"
 	"log"
 	"net/http"
 	"reflect"
 	"strings"
 	"sync"
+	"time"
 )
 
 type Handler func(ctx *Ctx, w http.ResponseWriter, r *http.Request) error
@@ -23,6 +26,7 @@ type Server struct {
 	encoder    encoder.Encoder
 	snappy     bool
 	logError   LogErrorFunc
+	registry   registry.Registry
 }
 
 func defaulLogErr(serviceID, service, method string, status int, err error) {
@@ -63,12 +67,88 @@ func (server *Server) Service(service interface{}, h ...Handler) {
 	}
 }
 
+func (server *Server) Registry(r registry.Registry) {
+	server.registry = r
+}
+
 func (server *Server) Encoder(enc encoder.Encoder) {
 	server.encoder = enc
 }
 
-func (server *Server) Run(addr string) {
-	http.ListenAndServe(addr, server)
+func (server *Server) Run(addr string, timeout time.Duration) {
+	server.start(addr)
+	srv := &graceful.Server{
+		Timeout: timeout,
+		ShutdownInitiated: func() {
+			log.Println("stop server")
+			server.stop()
+		},
+		Server: &http.Server{
+			Addr:    addr,
+			Handler: server,
+		},
+	}
+
+	log.Println("start server")
+	srv.ListenAndServe()
+}
+
+func (server *Server) RunTLS(addr string, timeout time.Duration, certFile, keyFile string) {
+	server.start(addr)
+	srv := &graceful.Server{
+		Timeout: timeout,
+		ShutdownInitiated: func() {
+			server.stop()
+		},
+		Server: &http.Server{
+			Addr:    addr,
+			Handler: server,
+		},
+	}
+
+	srv.ListenAndServeTLS(certFile, keyFile)
+
+}
+
+func (server *Server) start(addr string) {
+	if server.registry == nil {
+		return
+	}
+
+	var host string
+	var port string
+	parts := strings.Split(addr, ":")
+	if len(parts) > 1 {
+		host = strings.Join(parts[:len(parts)-1], ":")
+		port = parts[len(parts)-1]
+	} else {
+		host = parts[0]
+	}
+
+	for _, service := range server.serviceMap {
+		err := server.registry.Register(&registry.Node{
+			Id:      service.id,
+			Name:    service.name,
+			Host:    host,
+			Port:    port,
+			Address: addr,
+		})
+		if err != nil {
+			log.Panicln(err)
+		}
+	}
+}
+
+func (server *Server) stop() {
+	if server.registry != nil {
+		for _, service := range server.serviceMap {
+			err := server.registry.Deregister(service.name, service.id)
+			if err != nil {
+				log.Panicln(err)
+			}
+		}
+	}
+
 }
 
 func getServiceMethod(s string) (string, string) {
@@ -106,7 +186,6 @@ func (server *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 
 	ctx := server.pool.Get().(*Ctx)
-	// defer server.pool.Put(ctx)
 
 	for name, vals := range req.Header {
 		ctx.ReqMetadata[name] = vals[0]

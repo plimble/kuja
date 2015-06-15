@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/plimble/kuja"
 	"github.com/plimble/kuja/encoder/json"
+	"github.com/plimble/kuja/registry/etcd"
 )
 
 type ServiceTest struct{}
@@ -19,6 +20,7 @@ func main() {
 	s.Service(&ServiceTest{})
 	s.Snappy(true)
 	s.Encoder(json.NewEncoder())
+	s.Registry(etcd.NewRegistry("/jack", []string{"http://plimble.com:4001"}))
 
-	s.Run(":4000")
+	s.Run(":3000", 0)
 }
