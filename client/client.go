@@ -42,8 +42,12 @@ func New(url string) *DefaultClient {
 }
 
 func NewWithRegistry(r registry.Registry) *DefaultClient {
+	discovery := &Discovery{
+		registry: r,
+	}
+
 	return &DefaultClient{
-		method:  &Discovery{r},
+		method:  discovery,
 		encoder: json.NewEncoder(),
 	}
 }

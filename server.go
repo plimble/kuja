@@ -187,11 +187,17 @@ func serve(ctx *Ctx) error {
 	}
 
 	if ctx.snappy {
+		data, err := ctx.encoder.Marshal(replyv.Interface())
+		if err != nil {
+			return err
+		}
+		data, err = snappy.Encode(nil, data)
+		if err != nil {
+			return err
+		}
 		ctx.isResp = true
 		ctx.w.Header().Set("Snappy", "true")
 		ctx.w.WriteHeader(200)
-		data, _ := ctx.encoder.Marshal(replyv.Interface())
-		data, _ = snappy.Encode(nil, data)
 		ctx.w.Write(data)
 	} else {
 		ctx.isResp = true
