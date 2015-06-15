@@ -80,11 +80,10 @@ func (server *Server) LogError(fn LogErrorFunc) {
 }
 
 func (server *Server) Run(addr string, timeout time.Duration) {
-	server.start(addr)
 	srv := &graceful.Server{
 		Timeout: timeout,
 		ShutdownInitiated: func() {
-			log.Infoln("stop server")
+			log.Info("Stop server")
 			server.stop()
 		},
 		Server: &http.Server{
@@ -93,15 +92,16 @@ func (server *Server) Run(addr string, timeout time.Duration) {
 		},
 	}
 
-	log.Infoln("start server")
+	log.Infof("Start server on %s", addr)
+	server.start(addr)
 	srv.ListenAndServe()
 }
 
 func (server *Server) RunTLS(addr string, timeout time.Duration, certFile, keyFile string) {
-	server.start(addr)
 	srv := &graceful.Server{
 		Timeout: timeout,
 		ShutdownInitiated: func() {
+			log.Info("Stop server")
 			server.stop()
 		},
 		Server: &http.Server{
@@ -110,8 +110,9 @@ func (server *Server) RunTLS(addr string, timeout time.Duration, certFile, keyFi
 		},
 	}
 
+	log.Infof("Start server %s", addr)
+	server.start(addr)
 	srv.ListenAndServeTLS(certFile, keyFile)
-
 }
 
 func (server *Server) start(addr string) {
@@ -137,8 +138,9 @@ func (server *Server) start(addr string) {
 			Port:    port,
 			Address: addr,
 		})
+		log.Infof("Registerd %s %s %s", service.name, service.id, addr)
 		if err != nil {
-			log.Panicln(err)
+			log.Error(err)
 		}
 	}
 }
@@ -147,8 +149,9 @@ func (server *Server) stop() {
 	if server.registry != nil {
 		for _, service := range server.serviceMap {
 			err := server.registry.Deregister(service.name, service.id)
+			log.Infof("Deregisterd %s %s", service.name, service.id)
 			if err != nil {
-				log.Panicln(err)
+				log.Error(err)
 			}
 		}
 	}

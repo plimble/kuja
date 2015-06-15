@@ -16,7 +16,6 @@ func (s *ServiceTest) Add(ctx *kuja.Ctx, req *AddReq, resp *AddResp) error {
 }
 
 func main() {
-
 	s := kuja.NewServer()
 	s.Service(&ServiceTest{})
 	s.Snappy(true)
@@ -24,8 +23,8 @@ func main() {
 	s.Registry(etcd.NewRegistry("/jack", []string{"http://plimble.com:4001"}))
 
 	logrus.SetFormatter(&logrus.TextFormatter{
-		FullTimestamp:    true,
-		DisableTimestamp: false,
+		FullTimestamp: true,
+		DisableColors: false,
 	})
 
 	s.Run(":3000", 0)
