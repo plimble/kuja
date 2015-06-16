@@ -41,13 +41,15 @@ func New(url string) *DefaultClient {
 	}
 }
 
-func NewWithRegistry(r registry.Registry) *DefaultClient {
-	discovery := &Discovery{
-		registry: r,
+func NewWithRegistry(r registry.Registry, watch bool) *DefaultClient {
+	if watch {
+		r.Watch()
 	}
 
 	return &DefaultClient{
-		method:  discovery,
+		method: &Discovery{
+			registry: r,
+		},
 		encoder: json.NewEncoder(),
 	}
 }
