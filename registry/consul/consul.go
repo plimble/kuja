@@ -10,6 +10,7 @@ import (
 )
 
 type ConsulRegistry struct {
+	addr   string
 	client *consul.Client
 	sync.RWMutex
 	services map[string]*registry.Service
@@ -106,6 +107,24 @@ func (c *ConsulRegistry) ListServices() ([]*registry.Service, error) {
 	return services, nil
 }
 
+func (e *ConsulRegistry) Watch() (registry.Watcher, error) {
+	services, err := e.ListServices()
+	if err != nil {
+		return nil, err
+	}
+
+	for i := 0; i < len(services); i++ {
+		s, err := e.GetService(services[i].Name)
+		if err != nil {
+			return nil, err
+		}
+
+		e.services[s.Name] = s
+	}
+
+	return newConsulWatcher(e)
+}
+
 func NewRegistry(addrs []string) registry.Registry {
 	replacer := strings.NewReplacer("http://", "", "https://", "")
 	for i := 0; i < len(addrs); i++ {
@@ -118,6 +137,7 @@ func NewRegistry(addrs []string) registry.Registry {
 	client, _ := consul.NewClient(config)
 
 	c := &ConsulRegistry{
+		addr:     config.Address,
 		client:   client,
 		services: make(map[string]*registry.Service),
 	}

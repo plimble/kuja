@@ -110,6 +110,10 @@ func (e *EtcdRegistry) ListServices() ([]*registry.Service, error) {
 		return nil, err
 	}
 
+	if rsp == nil {
+		return services, nil
+	}
+
 	for _, node := range rsp.Node.Nodes {
 		if node.Dir {
 			service := &registry.Service{}
@@ -123,6 +127,19 @@ func (e *EtcdRegistry) ListServices() ([]*registry.Service, error) {
 	}
 
 	return services, nil
+}
+
+func (e *EtcdRegistry) Watch() (registry.Watcher, error) {
+	s, err := e.ListServices()
+	if err != nil {
+		return nil, err
+	}
+
+	for i := 0; i < len(s); i++ {
+		e.services[s[i].Name] = s[i]
+	}
+
+	return newEtcdWatcher(e)
 }
 
 func NewRegistry(prefix string, addrs []string) registry.Registry {

@@ -21,13 +21,19 @@ func main() {
 	s.Service(&ServiceTest{})
 	s.Snappy(true)
 	s.Encoder(json.NewEncoder())
-	// s.Registry(etcd.NewRegistry("/jack1", []string{"http://plimble.com:4001"}))
-	s.Registry(consul.NewRegistry([]string{"http://plimble.com:8500"}))
+
+	// reg := etcd.NewRegistry("/jack6", []string{"http://plimble.com:4001"})
+	// s.Registry(reg)
+	// reg.Watch()
+
+	reg := consul.NewRegistry([]string{"http://plimble.com:8500"})
+	s.Registry(reg)
+	reg.Watch()
 
 	logrus.SetFormatter(&logrus.TextFormatter{
 		FullTimestamp: true,
 		DisableColors: false,
 	})
 
-	s.Run(":3001", 0)
+	s.Run(":3002", 0)
 }

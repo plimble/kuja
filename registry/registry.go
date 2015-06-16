@@ -13,10 +13,14 @@ type Node struct {
 	Address string
 }
 
+type Watcher interface {
+	Stop()
+}
+
 type Registry interface {
 	Register(node *Node) error
 	Deregister(node *Node) error
 	GetService(name string) (*Service, error)
 	ListServices() ([]*Service, error)
-	// Watch() (Watcher, error)
+	Watch() (Watcher, error)
 }
