@@ -6,7 +6,7 @@ import (
 	"reflect"
 )
 
-type Ctx struct {
+type Context struct {
 	ReqMetadata  Metadata
 	RespMetadata Metadata
 	index        int
@@ -25,7 +25,7 @@ type Ctx struct {
 	isResp       bool
 }
 
-func (ctx *Ctx) Next() error {
+func (ctx *Context) Next() error {
 	if ctx.index+1 == len(ctx.handlers) {
 		if err := serve(ctx); err != nil && !ctx.isResp {
 			respError(err, ctx)

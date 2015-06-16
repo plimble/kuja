@@ -18,7 +18,7 @@ import (
 	"time"
 )
 
-type Handler func(ctx *Ctx, w http.ResponseWriter, r *http.Request) error
+type Handler func(ctx *Context, w http.ResponseWriter, r *http.Request) error
 type LogErrorFunc func(serviceID, service, method string, status int, err error)
 
 type Server struct {
@@ -44,7 +44,7 @@ func NewServer() *Server {
 	}
 
 	server.pool.New = func() interface{} {
-		return &Ctx{
+		return &Context{
 			ReqMetadata:  make(Metadata),
 			RespMetadata: make(Metadata),
 			returnValues: make([]reflect.Value, 1),
@@ -239,7 +239,7 @@ func (server *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	ctx := server.pool.Get().(*Ctx)
+	ctx := server.pool.Get().(*Context)
 
 	for name, vals := range req.Header {
 		ctx.ReqMetadata[name] = vals[0]
@@ -283,7 +283,7 @@ func (server *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	server.pool.Put(ctx)
 }
 
-func respError(err error, ctx *Ctx) {
+func respError(err error, ctx *Context) {
 	if errs, ok := err.(Errors); ok {
 		ctx.isResp = true
 		go ctx.logError(ctx.ServiceID, ctx.ServiceName, ctx.MethodName, errs.Status(), err)
@@ -297,7 +297,7 @@ func respError(err error, ctx *Ctx) {
 	}
 }
 
-func serve(ctx *Ctx) error {
+func serve(ctx *Context) error {
 	argv := reflect.New(ctx.mt.ArgType.Elem())
 	replyv := reflect.New(ctx.mt.ReplyType.Elem())
 

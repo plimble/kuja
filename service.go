@@ -33,7 +33,7 @@ type methodType struct {
 	numCalls    uint
 }
 
-func (m *methodType) prepareContext(ctx *Ctx) reflect.Value {
+func (m *methodType) prepareContext(ctx *Context) reflect.Value {
 	if contextv := reflect.ValueOf(ctx); contextv.IsValid() {
 		return contextv
 	}

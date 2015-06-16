@@ -10,7 +10,7 @@ import (
 
 type ServiceTest struct{}
 
-func (s *ServiceTest) Add(ctx *kuja.Ctx, req *AddReq, resp *AddResp) error {
+func (s *ServiceTest) Add(ctx *kuja.Context, req *AddReq, resp *AddResp) error {
 	resp.C = req.A + req.B + 10
 
 	return nil
