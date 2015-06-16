@@ -1,13 +1,16 @@
 package kuja
 
 import (
+	"crypto/tls"
 	log "github.com/Sirupsen/logrus"
 	"github.com/golang/snappy/snappy"
 	"github.com/plimble/kuja/encoder"
 	"github.com/plimble/kuja/encoder/json"
 	"github.com/plimble/kuja/registry"
+	"golang.org/x/net/netutil"
 	"gopkg.in/tylerb/graceful.v1"
 	"io"
+	"net"
 	"net/http"
 	"reflect"
 	"strings"
@@ -82,19 +85,28 @@ func (server *Server) LogError(fn LogErrorFunc) {
 func (server *Server) Run(addr string, timeout time.Duration) {
 	srv := &graceful.Server{
 		Timeout: timeout,
-		ShutdownInitiated: func() {
-			log.Info("Stop server")
-			server.stop()
-		},
 		Server: &http.Server{
 			Addr:    addr,
 			Handler: server,
 		},
 	}
 
-	log.Infof("Start server on %s", addr)
+	l, err := net.Listen("tcp", addr)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
+	if srv.ListenLimit != 0 {
+		l = netutil.LimitListener(l, srv.ListenLimit)
+	}
+
 	server.start(addr)
-	srv.ListenAndServe()
+
+	log.Infof("Start server on %s", addr)
+	srv.Serve(l)
+	log.Info("Stop server")
+	server.stop()
 }
 
 func (server *Server) RunTLS(addr string, timeout time.Duration, certFile, keyFile string) {
@@ -110,9 +122,35 @@ func (server *Server) RunTLS(addr string, timeout time.Duration, certFile, keyFi
 		},
 	}
 
+	config := &tls.Config{}
+	if srv.TLSConfig != nil {
+		*config = *srv.TLSConfig
+	}
+
+	if config.NextProtos == nil {
+		config.NextProtos = []string{"http/1.1"}
+	}
+
+	var err error
+	config.Certificates = make([]tls.Certificate, 1)
+	config.Certificates[0], err = tls.LoadX509KeyPair(certFile, keyFile)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
+	conn, err := net.Listen("tcp", addr)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
+	tlsListener := tls.NewListener(conn, config)
+
 	log.Infof("Start server %s", addr)
-	server.start(addr)
-	srv.ListenAndServeTLS(certFile, keyFile)
+	srv.Serve(tlsListener)
+	log.Info("Stop server")
+	server.stop()
 }
 
 func (server *Server) start(addr string) {
@@ -131,13 +169,14 @@ func (server *Server) start(addr string) {
 	}
 
 	for _, service := range server.serviceMap {
-		err := server.registry.Register(&registry.Node{
+		service.node = &registry.Node{
 			Id:      service.id,
 			Name:    service.name,
 			Host:    host,
 			Port:    port,
 			Address: addr,
-		})
+		}
+		err := server.registry.Register(service.node)
 		log.Infof("Registerd %s %s %s", service.name, service.id, addr)
 		if err != nil {
 			log.Error(err)
@@ -148,11 +187,19 @@ func (server *Server) start(addr string) {
 func (server *Server) stop() {
 	if server.registry != nil {
 		for _, service := range server.serviceMap {
-			err := server.registry.Deregister(service.name, service.id)
-			log.Infof("Deregisterd %s %s", service.name, service.id)
-			if err != nil {
-				log.Error(err)
+			if service.node == nil {
+				continue
 			}
+			err := server.registry.Deregister(service.node)
+			if err != nil {
+				log.WithFields(log.Fields{
+					"error":      err,
+					"service":    service.name,
+					"service_id": service.id,
+				}).Error("Unable to deregister")
+				continue
+			}
+			log.Infof("Deregisterd %s %s", service.name, service.id)
 		}
 	}
 

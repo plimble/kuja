@@ -2,6 +2,7 @@ package kuja
 
 import (
 	"errors"
+	"github.com/plimble/kuja/registry"
 	"github.com/satori/go.uuid"
 	"log"
 	"reflect"
@@ -20,6 +21,7 @@ type service struct {
 	typ      reflect.Type           // type of the receiver
 	method   map[string]*methodType // registered methods
 	handlers []Handler
+	node     *registry.Node
 }
 
 type methodType struct {

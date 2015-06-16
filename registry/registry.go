@@ -15,7 +15,7 @@ type Node struct {
 
 type Registry interface {
 	Register(node *Node) error
-	Deregister(name, id string) error
+	Deregister(node *Node) error
 	GetService(name string) (*Service, error)
 	ListServices() ([]*Service, error)
 	// Watch() (Watcher, error)

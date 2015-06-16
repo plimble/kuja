@@ -52,12 +52,12 @@ func (e *EtcdRegistry) Register(node *registry.Node) error {
 	return err
 }
 
-func (e *EtcdRegistry) Deregister(name, id string) error {
-	if name == "" || id == "" {
+func (e *EtcdRegistry) Deregister(node *registry.Node) error {
+	if node == nil {
 		return errors.New("node should not be nil")
 	}
 
-	_, err := e.client.Delete(e.nodePath(name, id), false)
+	_, err := e.client.Delete(e.nodePath(node.Name, node.Id), false)
 
 	return err
 }
@@ -81,7 +81,6 @@ func (e *EtcdRegistry) GetService(name string) (*registry.Service, error) {
 		Nodes: []*registry.Node{},
 	}
 
-	//prefix/servicename/ssss=val
 	for _, n := range rsp.Node.Nodes {
 		if n.Dir {
 			continue
