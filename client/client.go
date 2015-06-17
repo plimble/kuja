@@ -7,9 +7,9 @@ import (
 	"github.com/plimble/kuja/encoder"
 	"github.com/plimble/kuja/encoder/json"
 	"github.com/plimble/kuja/registry"
-	"io/ioutil"
 	"net/http"
 	"strings"
+	"sync"
 )
 
 //go:generate mockery -name Client
@@ -26,6 +26,7 @@ type Client interface {
 type HeaderFunc func(header http.Header)
 
 type DefaultClient struct {
+	pool          sync.Pool
 	method        Method
 	encoder       encoder.Encoder
 	DefaultHeader http.Header
@@ -35,10 +36,17 @@ func New(url string) *DefaultClient {
 	if strings.HasPrefix(url, "/") {
 		url = url[:len(url)-1]
 	}
-	return &DefaultClient{
+
+	d := &DefaultClient{
 		method:  &Direct{url},
 		encoder: json.NewEncoder(),
 	}
+
+	d.pool.New = func() interface{} {
+		return bytes.NewBuffer(make([]byte, 0, bytes.MinRead))
+	}
+
+	return d
 }
 
 func NewWithRegistry(r registry.Registry, watch bool) *DefaultClient {
@@ -66,14 +74,17 @@ func (c *DefaultClient) Call(service, method string, reqv interface{}, respv int
 		return 0, err
 	}
 
-	data, err := c.encoder.Marshal(reqv)
+	buf := c.pool.Get().(*bytes.Buffer)
+
+	c.encoder.Encode(buf, reqv)
 	if err != nil {
+		c.pool.Put(buf)
 		return 0, err
 	}
-	buf := bytes.NewBuffer(data)
 
 	req, err := http.NewRequest("POST", addr, buf)
 	if err != nil {
+		c.pool.Put(buf)
 		return 0, err
 	}
 
@@ -87,46 +98,34 @@ func (c *DefaultClient) Call(service, method string, reqv interface{}, respv int
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
+		resp.Body.Close()
+		c.pool.Put(buf)
 		return 0, err
 	}
-
-	respData, err := ioutil.ReadAll(resp.Body)
+	buf.Reset()
+	buf.ReadFrom(resp.Body)
 	resp.Body.Close()
-	if err != nil {
-		return 0, err
-	}
 
 	if resp.StatusCode != 200 {
-		return resp.StatusCode, errors.New(string(respData))
+		c.pool.Put(buf)
+		return resp.StatusCode, errors.New(string(buf.Bytes()))
 	}
 
+	var respData []byte
 	if resp.Header.Get("Snappy") == "true" {
-		respData, err = snappy.Decode(nil, respData)
+		respData, err = snappy.Decode(nil, buf.Bytes())
 		if err != nil {
+			c.pool.Put(buf)
 			return 0, err
 		}
 	}
 
 	err = c.encoder.Unmarshal(respData, respv)
-	resp.Body.Close()
 	if err != nil {
+		c.pool.Put(buf)
 		return 0, err
 	}
 
+	c.pool.Put(buf)
 	return resp.StatusCode, err
-}
-
-func concat(s ...string) string {
-	size := 0
-	for i := 0; i < len(s); i++ {
-		size += len(s[i])
-	}
-
-	buf := make([]byte, 0, size)
-
-	for i := 0; i < len(s); i++ {
-		buf = append(buf, []byte(s[i])...)
-	}
-
-	return string(buf)
 }

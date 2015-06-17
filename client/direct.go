@@ -5,5 +5,6 @@ type Direct struct {
 }
 
 func (d *Direct) GetAddress(service, method string) (string, error) {
-	return concat(d.url, "/", service, "/", method), nil
+	return d.url + "/" + service + "/" + method, nil
+	// return concat(d.url, "/", service, "/", method), nil
 }
