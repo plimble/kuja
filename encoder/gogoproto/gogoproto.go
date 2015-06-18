@@ -16,12 +16,12 @@ func NewEncoder() *GoGoProtoEncoder {
 }
 
 func (e *GoGoProtoEncoder) Encode(w io.Writer, v interface{}) error {
-	pb, ok := v.(proto.Message)
+	pb, ok := v.(proto.Marshaler)
 	if !ok {
 		errors.New("does not proto message interface")
 	}
 
-	data, err := proto.Marshal(pb)
+	data, err := pb.Marshal()
 	if err != nil {
 		return err
 	}
@@ -35,31 +35,31 @@ func (e *GoGoProtoEncoder) Decode(r io.Reader, v interface{}) error {
 	buf := e.pool.Get()
 	buf.ReadFrom(r)
 
-	pb, ok := v.(proto.Message)
+	pb, ok := v.(proto.Unmarshaler)
 	if !ok {
 		errors.New("does not proto message interface")
 	}
 
-	err := proto.Unmarshal(buf.Bytes(), pb)
+	err := pb.Unmarshal(buf.Bytes())
 	e.pool.Put(buf)
 
 	return err
 }
 
 func (e *GoGoProtoEncoder) Marshal(v interface{}) ([]byte, error) {
-	pb, ok := v.(proto.Message)
+	pb, ok := v.(proto.Marshaler)
 	if !ok {
 		errors.New("does not proto message interface")
 	}
 
-	return proto.Marshal(pb)
+	return pb.Marshal()
 }
 
 func (e *GoGoProtoEncoder) Unmarshal(data []byte, v interface{}) error {
-	pb, ok := v.(proto.Message)
+	pb, ok := v.(proto.Unmarshaler)
 	if !ok {
 		errors.New("does not proto message interface")
 	}
 
-	return proto.Unmarshal(data, pb)
+	return pb.Unmarshal(data)
 }
