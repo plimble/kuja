@@ -2,13 +2,15 @@ package kuja
 
 import (
 	"errors"
+	log "github.com/Sirupsen/logrus"
 	"github.com/plimble/kuja/registry"
 	"github.com/satori/go.uuid"
-	"log"
 	"reflect"
 	"unicode"
 	"unicode/utf8"
 )
+
+type ServiceErrorFunc func(serviceID, service, method string, status int, err error)
 
 // Precompute the reflect type for error. Can't use error directly
 // because Typeof takes an empty interface value. This is annoying.
@@ -31,6 +33,20 @@ type methodType struct {
 	ContextType reflect.Type
 	stream      bool
 	numCalls    uint
+}
+
+func (server *Server) ServiceError(fn ServiceErrorFunc) {
+	server.serviceError = fn
+}
+
+func defaulServiceErr(serviceID, service, method string, status int, err error) {
+	log.Infof("Service Error %s %s %s %d %s", serviceID, service, method, status, err)
+}
+
+func (server *Server) Service(service interface{}, h ...Handler) {
+	if err := server.register(service, "", false, h); err != nil {
+		panic(err)
+	}
 }
 
 func (m *methodType) prepareContext(ctx *Context) reflect.Value {

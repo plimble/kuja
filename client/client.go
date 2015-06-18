@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"github.com/golang/snappy/snappy"
+	"github.com/plimble/kuja/broker"
 	"github.com/plimble/kuja/encoder"
 	"github.com/plimble/kuja/encoder/json"
 	"github.com/plimble/kuja/registry"
@@ -29,6 +30,7 @@ type DefaultClient struct {
 	pool          sync.Pool
 	method        Method
 	encoder       encoder.Encoder
+	broker        broker.Broker
 	DefaultHeader http.Header
 }
 
@@ -60,6 +62,29 @@ func NewWithRegistry(r registry.Registry, watch bool) *DefaultClient {
 		},
 		encoder: json.NewEncoder(),
 	}
+}
+
+func (c *DefaultClient) Broker(b broker.Broker) {
+	c.broker = b
+}
+
+func (c *DefaultClient) Publish(topic string, v interface{}, meta map[string]string) error {
+	data, err := c.encoder.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	msg := broker.Message{
+		Header: meta,
+		Body:   data,
+	}
+
+	msgData, err := msg.Marshal()
+	if err != nil {
+		return err
+	}
+
+	return c.broker.Publish(topic, msgData)
 }
 
 func (c *DefaultClient) Encoder(enc encoder.Encoder) {

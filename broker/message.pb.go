@@ -9,11 +9,11 @@
 		message.proto
 
 	It has these top-level messages:
-		MessageProto
+		Message
 */
 package broker
 
-import proto "github.com/golang/protobuf/proto"
+import proto "github.com/gogo/protobuf/proto"
 
 import io "io"
 import fmt "fmt"
@@ -23,16 +23,16 @@ import github_com_gogo_protobuf_sortkeys "github.com/gogo/protobuf/sortkeys"
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
 
-type MessageProto struct {
+type Message struct {
 	Header map[string]string `protobuf:"bytes,1,rep" json:"Header,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 	Body   []byte            `protobuf:"bytes,2,opt,proto3" json:"Body,omitempty"`
 }
 
-func (m *MessageProto) Reset()         { *m = MessageProto{} }
-func (m *MessageProto) String() string { return proto.CompactTextString(m) }
-func (*MessageProto) ProtoMessage()    {}
+func (m *Message) Reset()         { *m = Message{} }
+func (m *Message) String() string { return proto.CompactTextString(m) }
+func (*Message) ProtoMessage()    {}
 
-func (m *MessageProto) GetHeader() map[string]string {
+func (m *Message) GetHeader() map[string]string {
 	if m != nil {
 		return m.Header
 	}
@@ -41,17 +41,17 @@ func (m *MessageProto) GetHeader() map[string]string {
 
 func init() {
 }
-func (m *MessageProto) Unmarshal(data []byte) error {
+func (m *Message) Unmarshal(data []byte) error {
 	l := len(data)
-	index := 0
-	for index < l {
+	iNdEx := 0
+	for iNdEx < l {
 		var wire uint64
 		for shift := uint(0); ; shift += 7 {
-			if index >= l {
+			if iNdEx >= l {
 				return io.ErrUnexpectedEOF
 			}
-			b := data[index]
-			index++
+			b := data[iNdEx]
+			iNdEx++
 			wire |= (uint64(b) & 0x7F) << shift
 			if b < 0x80 {
 				break
@@ -66,27 +66,27 @@ func (m *MessageProto) Unmarshal(data []byte) error {
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
-				if index >= l {
+				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[index]
-				index++
+				b := data[iNdEx]
+				iNdEx++
 				msglen |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
-			postIndex := index + msglen
+			postIndex := iNdEx + msglen
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
 			var keykey uint64
 			for shift := uint(0); ; shift += 7 {
-				if index >= l {
+				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[index]
-				index++
+				b := data[iNdEx]
+				iNdEx++
 				keykey |= (uint64(b) & 0x7F) << shift
 				if b < 0x80 {
 					break
@@ -94,29 +94,29 @@ func (m *MessageProto) Unmarshal(data []byte) error {
 			}
 			var stringLenmapkey uint64
 			for shift := uint(0); ; shift += 7 {
-				if index >= l {
+				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[index]
-				index++
+				b := data[iNdEx]
+				iNdEx++
 				stringLenmapkey |= (uint64(b) & 0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
-			postStringIndexmapkey := index + int(stringLenmapkey)
+			postStringIndexmapkey := iNdEx + int(stringLenmapkey)
 			if postStringIndexmapkey > l {
 				return io.ErrUnexpectedEOF
 			}
-			mapkey := string(data[index:postStringIndexmapkey])
-			index = postStringIndexmapkey
+			mapkey := string(data[iNdEx:postStringIndexmapkey])
+			iNdEx = postStringIndexmapkey
 			var valuekey uint64
 			for shift := uint(0); ; shift += 7 {
-				if index >= l {
+				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[index]
-				index++
+				b := data[iNdEx]
+				iNdEx++
 				valuekey |= (uint64(b) & 0x7F) << shift
 				if b < 0x80 {
 					break
@@ -124,49 +124,49 @@ func (m *MessageProto) Unmarshal(data []byte) error {
 			}
 			var stringLenmapvalue uint64
 			for shift := uint(0); ; shift += 7 {
-				if index >= l {
+				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[index]
-				index++
+				b := data[iNdEx]
+				iNdEx++
 				stringLenmapvalue |= (uint64(b) & 0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
-			postStringIndexmapvalue := index + int(stringLenmapvalue)
+			postStringIndexmapvalue := iNdEx + int(stringLenmapvalue)
 			if postStringIndexmapvalue > l {
 				return io.ErrUnexpectedEOF
 			}
-			mapvalue := string(data[index:postStringIndexmapvalue])
-			index = postStringIndexmapvalue
+			mapvalue := string(data[iNdEx:postStringIndexmapvalue])
+			iNdEx = postStringIndexmapvalue
 			if m.Header == nil {
 				m.Header = make(map[string]string)
 			}
 			m.Header[mapkey] = mapvalue
-			index = postIndex
+			iNdEx = postIndex
 		case 2:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Body", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
-				if index >= l {
+				if iNdEx >= l {
 					return io.ErrUnexpectedEOF
 				}
-				b := data[index]
-				index++
+				b := data[iNdEx]
+				iNdEx++
 				byteLen |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
-			postIndex := index + byteLen
+			postIndex := iNdEx + byteLen
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Body = append([]byte{}, data[index:postIndex]...)
-			index = postIndex
+			m.Body = append([]byte{}, data[iNdEx:postIndex]...)
+			iNdEx = postIndex
 		default:
 			var sizeOfWire int
 			for {
@@ -176,15 +176,15 @@ func (m *MessageProto) Unmarshal(data []byte) error {
 					break
 				}
 			}
-			index -= sizeOfWire
-			skippy, err := skipMessage(data[index:])
+			iNdEx -= sizeOfWire
+			skippy, err := skipMessage(data[iNdEx:])
 			if err != nil {
 				return err
 			}
-			if (index + skippy) > l {
+			if (iNdEx + skippy) > l {
 				return io.ErrUnexpectedEOF
 			}
-			index += skippy
+			iNdEx += skippy
 		}
 	}
 
@@ -192,15 +192,15 @@ func (m *MessageProto) Unmarshal(data []byte) error {
 }
 func skipMessage(data []byte) (n int, err error) {
 	l := len(data)
-	index := 0
-	for index < l {
+	iNdEx := 0
+	for iNdEx < l {
 		var wire uint64
 		for shift := uint(0); ; shift += 7 {
-			if index >= l {
+			if iNdEx >= l {
 				return 0, io.ErrUnexpectedEOF
 			}
-			b := data[index]
-			index++
+			b := data[iNdEx]
+			iNdEx++
 			wire |= (uint64(b) & 0x7F) << shift
 			if b < 0x80 {
 				break
@@ -210,43 +210,43 @@ func skipMessage(data []byte) (n int, err error) {
 		switch wireType {
 		case 0:
 			for {
-				if index >= l {
+				if iNdEx >= l {
 					return 0, io.ErrUnexpectedEOF
 				}
-				index++
-				if data[index-1] < 0x80 {
+				iNdEx++
+				if data[iNdEx-1] < 0x80 {
 					break
 				}
 			}
-			return index, nil
+			return iNdEx, nil
 		case 1:
-			index += 8
-			return index, nil
+			iNdEx += 8
+			return iNdEx, nil
 		case 2:
 			var length int
 			for shift := uint(0); ; shift += 7 {
-				if index >= l {
+				if iNdEx >= l {
 					return 0, io.ErrUnexpectedEOF
 				}
-				b := data[index]
-				index++
+				b := data[iNdEx]
+				iNdEx++
 				length |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
-			index += length
-			return index, nil
+			iNdEx += length
+			return iNdEx, nil
 		case 3:
 			for {
 				var wire uint64
-				var start int = index
+				var start int = iNdEx
 				for shift := uint(0); ; shift += 7 {
-					if index >= l {
+					if iNdEx >= l {
 						return 0, io.ErrUnexpectedEOF
 					}
-					b := data[index]
-					index++
+					b := data[iNdEx]
+					iNdEx++
 					wire |= (uint64(b) & 0x7F) << shift
 					if b < 0x80 {
 						break
@@ -260,21 +260,21 @@ func skipMessage(data []byte) (n int, err error) {
 				if err != nil {
 					return 0, err
 				}
-				index = start + next
+				iNdEx = start + next
 			}
-			return index, nil
+			return iNdEx, nil
 		case 4:
-			return index, nil
+			return iNdEx, nil
 		case 5:
-			index += 4
-			return index, nil
+			iNdEx += 4
+			return iNdEx, nil
 		default:
 			return 0, fmt.Errorf("proto: illegal wireType %d", wireType)
 		}
 	}
 	panic("unreachable")
 }
-func (m *MessageProto) Size() (n int) {
+func (m *Message) Size() (n int) {
 	var l int
 	_ = l
 	if len(m.Header) > 0 {
@@ -307,7 +307,7 @@ func sovMessage(x uint64) (n int) {
 func sozMessage(x uint64) (n int) {
 	return sovMessage(uint64((x << 1) ^ uint64((int64(x) >> 63))))
 }
-func (m *MessageProto) Marshal() (data []byte, err error) {
+func (m *Message) Marshal() (data []byte, err error) {
 	size := m.Size()
 	data = make([]byte, size)
 	n, err := m.MarshalTo(data)
@@ -317,7 +317,7 @@ func (m *MessageProto) Marshal() (data []byte, err error) {
 	return data[:n], nil
 }
 
-func (m *MessageProto) MarshalTo(data []byte) (n int, err error) {
+func (m *Message) MarshalTo(data []byte) (n int, err error) {
 	var i int
 	_ = i
 	var l int

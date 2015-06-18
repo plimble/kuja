@@ -18,7 +18,7 @@ type Context struct {
 	encoder      encoder.Encoder
 	returnValues []reflect.Value
 	snappy       bool
-	logError     LogErrorFunc
+	serviceError ServiceErrorFunc
 	ServiceID    string
 	ServiceName  string
 	MethodName   string

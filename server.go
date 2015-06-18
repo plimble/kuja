@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	log "github.com/Sirupsen/logrus"
 	"github.com/golang/snappy/snappy"
+	"github.com/plimble/kuja/broker"
 	"github.com/plimble/kuja/encoder"
 	"github.com/plimble/kuja/encoder/json"
 	"github.com/plimble/kuja/registry"
@@ -19,28 +20,27 @@ import (
 )
 
 type Handler func(ctx *Context, w http.ResponseWriter, r *http.Request) error
-type LogErrorFunc func(serviceID, service, method string, status int, err error)
 
 type Server struct {
-	pool       sync.Pool
-	middleware []Handler
-	mu         sync.Mutex // protects the serviceMap
-	serviceMap map[string]*service
-	encoder    encoder.Encoder
-	snappy     bool
-	logError   LogErrorFunc
-	registry   registry.Registry
-}
-
-func defaulLogErr(serviceID, service, method string, status int, err error) {
-	log.Infof("Error %s %s %s %d %s", serviceID, service, method, status, err)
+	pool            sync.Pool
+	middleware      []Handler
+	mu              sync.Mutex // protects the serviceMap
+	serviceMap      map[string]*service
+	subscriberMap   map[string]*subscriber
+	broker          broker.Broker
+	encoder         encoder.Encoder
+	snappy          bool
+	serviceError    ServiceErrorFunc
+	subscriberError SubscriberErrorFunc
+	registry        registry.Registry
 }
 
 func NewServer() *Server {
 	server := &Server{
-		serviceMap: make(map[string]*service),
-		encoder:    json.NewEncoder(),
-		logError:   defaulLogErr,
+		serviceMap:      make(map[string]*service),
+		encoder:         json.NewEncoder(),
+		serviceError:    defaulServiceErr,
+		subscriberError: defaulSubscriberErr,
 	}
 
 	server.pool.New = func() interface{} {
@@ -48,7 +48,7 @@ func NewServer() *Server {
 			ReqMetadata:  make(Metadata),
 			RespMetadata: make(Metadata),
 			returnValues: make([]reflect.Value, 1),
-			logError:     server.logError,
+			serviceError: server.serviceError,
 			isResp:       false,
 		}
 	}
@@ -64,22 +64,12 @@ func (server *Server) Snappy(enable bool) {
 	server.snappy = enable
 }
 
-func (server *Server) Service(service interface{}, h ...Handler) {
-	if err := server.register(service, "", false, h); err != nil {
-		panic(err)
-	}
-}
-
 func (server *Server) Registry(r registry.Registry) {
 	server.registry = r
 }
 
 func (server *Server) Encoder(enc encoder.Encoder) {
 	server.encoder = enc
-}
-
-func (server *Server) LogError(fn LogErrorFunc) {
-	server.logError = fn
 }
 
 func (server *Server) Run(addr string, timeout time.Duration) {
@@ -202,7 +192,6 @@ func (server *Server) stop() {
 			log.Infof("Deregisterd %s %s", service.name, service.id)
 		}
 	}
-
 }
 
 func getServiceMethod(s string) (string, string) {
@@ -286,12 +275,12 @@ func (server *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 func respError(err error, ctx *Context) {
 	if errs, ok := err.(Errors); ok {
 		ctx.isResp = true
-		go ctx.logError(ctx.ServiceID, ctx.ServiceName, ctx.MethodName, errs.Status(), err)
+		go ctx.serviceError(ctx.ServiceID, ctx.ServiceName, ctx.MethodName, errs.Status(), err)
 		ctx.w.WriteHeader(errs.Status())
 		ctx.w.Write([]byte(errs.Error()))
 	} else {
 		ctx.isResp = true
-		go ctx.logError(ctx.ServiceID, ctx.ServiceName, ctx.MethodName, 500, err)
+		go ctx.serviceError(ctx.ServiceID, ctx.ServiceName, ctx.MethodName, 500, err)
 		ctx.w.WriteHeader(500)
 		ctx.w.Write([]byte(err.Error()))
 	}

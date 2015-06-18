@@ -1,19 +1,9 @@
 package broker
 
 type Broker interface {
-	Address() string
-	Connect() error
-	Disconnect() error
-	Init() error
-	Publish(string, *Message) error
-	Subscribe(string, Handler) (Subscriber, error)
+	Publish(topic string, data []byte) error
+	Subscribe(topic string, h Handler)
+	Queue(workers int, topic string, h Handler)
 }
 
-type Message struct {
-	Header map[string]string
-	Body   []byte
-}
-
-type Handler func()
-
-type Subscriber struct{}
+type Handler func(topic string, header map[string]string, data []byte)

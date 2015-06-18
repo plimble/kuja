@@ -2,6 +2,7 @@ package nats
 
 import (
 	"github.com/apcera/nats"
+	"github.com/plimble/kuja/broker"
 )
 
 type natsBroker struct {
@@ -19,14 +20,18 @@ func NewBroker(url string) (*natsBroker, error) {
 	}, nil
 }
 
-func (n *natsBroker) Publish(topic string) {
-	n.conn.Publish(subj, data)
+func (n *natsBroker) Publish(topic string, data []byte) error {
+	return n.conn.Publish(topic, data)
 }
 
-func (n *natsBroker) Subscribe() {
-    
+func (n *natsBroker) Subscribe(topic string, h broker.Handler) {
+	n.conn.Subscribe(topic, func(msg *nats.Msg) {
+		h(msg.Subject, nil, msg.Data)
+	})
 }
 
-func (n *natsBroker) Queue() {
-
+func (n *natsBroker) Queue(workers int, topic string, h broker.Handler) {
+	n.conn.QueueSubscribe(topic, "queue", func(msg *nats.Msg) {
+		h(msg.Subject, nil, msg.Data)
+	})
 }

@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package broker;
 
-message MessageProto {
+message Message {
   map<string, string> Header = 1;
   bytes Body = 2;
 }
