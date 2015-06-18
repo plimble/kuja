@@ -5,8 +5,9 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/plimble/kuja"
 	"github.com/plimble/kuja/broker/nats"
-	"github.com/plimble/kuja/encoder/json"
+	"github.com/plimble/kuja/encoder/gogoproto"
 	"github.com/plimble/kuja/registry/consul"
+	"time"
 	// "github.com/plimble/kuja/registry/etcd"
 )
 
@@ -14,6 +15,7 @@ type ServiceTest struct{}
 
 func (s *ServiceTest) Add(ctx *kuja.Context, req *AddReq, resp *AddResp) error {
 	resp.C = req.A + req.B + 10
+	logrus.Info("request", req, "resp", resp)
 
 	return nil
 }
@@ -21,8 +23,9 @@ func (s *ServiceTest) Add(ctx *kuja.Context, req *AddReq, resp *AddResp) error {
 type SubTest struct{}
 
 func (s *SubTest) Add(info *kuja.SubscriberInfo, meta kuja.Metadata, data *AddReq) error {
+	logrus.Info("get", data)
+	time.Sleep(time.Second * 2)
 	logrus.Info(meta)
-	logrus.Info(data)
 	logrus.Info(info)
 	return errors.New("test error")
 }
@@ -31,8 +34,8 @@ func main() {
 	s := kuja.NewServer()
 	s.Service(&ServiceTest{})
 	s.Snappy(true)
-	s.Encoder(json.NewEncoder())
-	broker, err := nats.NewBroker("http://127.0.0.1:4222")
+	s.Encoder(gogoproto.NewEncoder())
+	broker, err := nats.NewBroker("nats://127.0.0.1:4222")
 	if err != nil {
 		panic(err)
 	}

@@ -91,7 +91,40 @@ func (c *DefaultClient) Encoder(enc encoder.Encoder) {
 	c.encoder = enc
 }
 
-func (c *DefaultClient) Call(service, method string, reqv interface{}, respv interface{}, header http.Header) (int, error) {
+func (c *DefaultClient) AsyncRequest(service, method string, reqv interface{}, respv interface{}, header http.Header) error {
+	var err error
+
+	addr, err := c.method.GetAddress(service, method)
+	if err != nil {
+		return err
+	}
+
+	data, err := c.encoder.Marshal(reqv)
+	if err != nil {
+		return err
+	}
+	buf := bytes.NewBuffer(data)
+
+	req, err := http.NewRequest("POST", addr, buf)
+	if err != nil {
+
+		return err
+	}
+
+	for name, val := range c.DefaultHeader {
+		req.Header.Set(name, val[0])
+	}
+
+	for name, val := range header {
+		req.Header.Set(name, val[0])
+	}
+
+	go http.DefaultClient.Do(req)
+
+	return nil
+}
+
+func (c *DefaultClient) Request(service, method string, reqv interface{}, respv interface{}, header http.Header) (int, error) {
 	var err error
 
 	addr, err := c.method.GetAddress(service, method)
@@ -99,17 +132,14 @@ func (c *DefaultClient) Call(service, method string, reqv interface{}, respv int
 		return 0, err
 	}
 
-	buf := c.pool.Get().(*bytes.Buffer)
-
-	c.encoder.Encode(buf, reqv)
+	dataReq, err := c.encoder.Marshal(reqv)
 	if err != nil {
-		c.pool.Put(buf)
 		return 0, err
 	}
+	buf := bytes.NewBuffer(dataReq)
 
 	req, err := http.NewRequest("POST", addr, buf)
 	if err != nil {
-		c.pool.Put(buf)
 		return 0, err
 	}
 
@@ -123,8 +153,6 @@ func (c *DefaultClient) Call(service, method string, reqv interface{}, respv int
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		resp.Body.Close()
-		c.pool.Put(buf)
 		return 0, err
 	}
 	buf.Reset()
@@ -132,25 +160,22 @@ func (c *DefaultClient) Call(service, method string, reqv interface{}, respv int
 	resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		c.pool.Put(buf)
 		return resp.StatusCode, errors.New(string(buf.Bytes()))
 	}
 
-	var respData []byte
+	respData := buf.Bytes()
 	if resp.Header.Get("Snappy") == "true" {
 		respData, err = snappy.Decode(nil, buf.Bytes())
 		if err != nil {
-			c.pool.Put(buf)
+
 			return 0, err
 		}
 	}
 
 	err = c.encoder.Unmarshal(respData, respv)
 	if err != nil {
-		c.pool.Put(buf)
 		return 0, err
 	}
 
-	c.pool.Put(buf)
 	return resp.StatusCode, err
 }

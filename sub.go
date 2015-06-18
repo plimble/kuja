@@ -10,6 +10,11 @@ import (
 
 type SubscriberErrorFunc func(subscriberID, subscriber, topic string, err error)
 
+type subscriberContext struct {
+	info *SubscriberInfo
+	msg  *broker.Message
+}
+
 type SubscriberInfo struct {
 	Id         string
 	Subscriber string
@@ -89,23 +94,26 @@ func (server *Server) registerSub(rcvr interface{}, name string, useName bool) e
 
 		topic := s.name + "." + method.Name
 		server.broker.Subscribe(topic, func(topic string, header map[string]string, data []byte) {
-			metav := Metadata{}
-			datav := reflect.New(s.method[method.Name].DataType.Elem())
-			infov := &SubscriberInfo{s.id, s.name, method.Name}
+			info := &SubscriberInfo{}
 			msg := &broker.Message{}
+			info.Id = s.id
+			info.Subscriber = s.name
+			info.Topic = method.Name
+			datav := reflect.New(s.method[method.Name].DataType.Elem())
+
 			if err := msg.Unmarshal(data); err != nil {
-				server.subscriberError(s.id, s.name, method.Name, err)
+				server.subscriberError(info.Id, info.Subscriber, info.Topic, err)
 				return
 			}
 			if err := server.encoder.Unmarshal(msg.Body, datav.Interface()); err != nil {
-				server.subscriberError(s.id, s.name, method.Name, err)
+				server.subscriberError(info.Id, info.Subscriber, info.Topic, err)
 				return
 			}
-			metav = msg.Header
-			returnValues := s.method[method.Name].method.Func.Call([]reflect.Value{s.rcvr, reflect.ValueOf(infov), reflect.ValueOf(metav), datav})
+
+			returnValues := s.method[method.Name].method.Func.Call([]reflect.Value{s.rcvr, reflect.ValueOf(info), reflect.ValueOf(msg.Header), datav})
 			errInter := returnValues[0].Interface()
 			if errInter != nil {
-				server.subscriberError(s.id, s.name, method.Name, errInter.(error))
+				server.subscriberError(info.Id, info.Subscriber, info.Topic, errInter.(error))
 			}
 		})
 	}
