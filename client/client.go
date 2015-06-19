@@ -77,17 +77,12 @@ func (c *DefaultClient) Publish(service, topic string, v interface{}, meta map[s
 		return err
 	}
 
-	msg := broker.Message{
+	msg := &broker.Message{
 		Header: meta,
 		Body:   data,
 	}
 
-	msgData, err := msg.Marshal()
-	if err != nil {
-		return err
-	}
-
-	return c.broker.Publish(service+"."+topic, msgData)
+	return c.broker.Publish(service+"."+topic, msg)
 }
 
 func (c *DefaultClient) Encoder(enc encoder.Encoder) {

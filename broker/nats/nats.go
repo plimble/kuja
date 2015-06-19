@@ -27,18 +27,26 @@ func (n *natsBroker) Close() {
 	n.conn.Close()
 }
 
-func (n *natsBroker) Publish(topic string, data []byte) error {
+func (n *natsBroker) Publish(topic string, msg *broker.Message) error {
+	data, err := msg.Marshal()
+	if err != nil {
+		return err
+	}
 	return n.conn.Publish(topic, data)
 }
 
 func (n *natsBroker) Subscribe(topic, appId string, h broker.Handler) {
 	n.conn.QueueSubscribe(topic, appId, func(msg *nats.Msg) {
-		h(msg.Subject, nil, msg.Data)
-	})
-}
-
-func (n *natsBroker) Queue(workers int, topic string, h broker.Handler) {
-	n.conn.QueueSubscribe(topic, "queue", func(msg *nats.Msg) {
-		h(msg.Subject, nil, msg.Data)
+		brokerMsg := &broker.Message{}
+		brokerMsg.Unmarshal(msg.Data)
+		retryCount, reject := h(msg.Subject, brokerMsg)
+		if reject {
+			if retryCount == 0 {
+				n.Publish(topic, brokerMsg)
+			} else if brokerMsg.Retry < int32(retryCount) {
+				brokerMsg.Retry++
+				n.Publish(topic, brokerMsg)
+			}
+		}
 	})
 }

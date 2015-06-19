@@ -25,7 +25,8 @@ var _ = proto.Marshal
 
 type Message struct {
 	Header map[string]string `protobuf:"bytes,1,rep" json:"Header,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
-	Body   []byte            `protobuf:"bytes,2,opt,proto3" json:"Body,omitempty"`
+	Retry  int32             `protobuf:"varint,2,opt,proto3" json:"Retry,omitempty"`
+	Body   []byte            `protobuf:"bytes,3,opt,proto3" json:"Body,omitempty"`
 }
 
 func (m *Message) Reset()         { *m = Message{} }
@@ -146,6 +147,21 @@ func (m *Message) Unmarshal(data []byte) error {
 			m.Header[mapkey] = mapvalue
 			iNdEx = postIndex
 		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Retry", wireType)
+			}
+			for shift := uint(0); ; shift += 7 {
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				m.Retry |= (int32(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 3:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Body", wireType)
 			}
@@ -285,6 +301,9 @@ func (m *Message) Size() (n int) {
 			n += mapEntrySize + 1 + sovMessage(uint64(mapEntrySize))
 		}
 	}
+	if m.Retry != 0 {
+		n += 1 + sovMessage(uint64(m.Retry))
+	}
 	if m.Body != nil {
 		l = len(m.Body)
 		if l > 0 {
@@ -344,9 +363,14 @@ func (m *Message) MarshalTo(data []byte) (n int, err error) {
 			i += copy(data[i:], v)
 		}
 	}
+	if m.Retry != 0 {
+		data[i] = 0x10
+		i++
+		i = encodeVarintMessage(data, i, uint64(m.Retry))
+	}
 	if m.Body != nil {
 		if len(m.Body) > 0 {
-			data[i] = 0x12
+			data[i] = 0x1a
 			i++
 			i = encodeVarintMessage(data, i, uint64(len(m.Body)))
 			i += copy(data[i:], m.Body)

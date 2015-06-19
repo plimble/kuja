@@ -13,6 +13,25 @@ type SubscribeContext struct {
 	Service  string
 	Topic    string
 	Metadata Metadata
+	status   string
+	retry    int
+	reject   bool
+}
+
+func (ctx *SubscribeContext) Reject(retry int) error {
+	ctx.reject = true
+	if retry > -1 {
+		ctx.retry = retry
+		return nil
+	}
+
+	ctx.retry = -1
+
+	return nil
+}
+
+func (ctx *SubscribeContext) Ack() error {
+	return nil
 }
 
 type subscriber struct {
@@ -25,7 +44,7 @@ type subscriber struct {
 }
 
 func defaulSubscriberErr(subscriberID, subscriber, topic string, err error) {
-	log.Infof("Subscriber Error %s %s %s %s", subscriberID, subscriber, topic, err)
+	log.Errorf("Subscriber Error %s %s %s %s", subscriberID, subscriber, topic, err)
 }
 
 func (server *Server) SubscriberError(fn SubscriberErrorFunc) {
@@ -99,30 +118,26 @@ func (server *Server) registerSub(method interface{}, s *subscriber) error {
 	return nil
 }
 
-func (server *Server) subscribe(s *subscriber) func(topic string, header map[string]string, data []byte) {
-	return func(topic string, header map[string]string, data []byte) {
+func (server *Server) subscribe(s *subscriber) broker.Handler {
+	return func(topic string, msg *broker.Message) (int, bool) {
 		sub, ok := server.subscriberMap[topic]
 		if !ok {
 			server.subscriberError("", "", "", errors.New("no topic"+topic))
-			return
+			return -1, false
 		}
 
-		msg := &broker.Message{}
 		ctx := &SubscribeContext{
-			Service: sub.service,
-			Topic:   sub.topic,
+			Service:  sub.service,
+			Topic:    sub.topic,
+			Metadata: msg.Header,
+			retry:    -1,
+			reject:   false,
 		}
-
-		if err := msg.Unmarshal(data); err != nil {
-			server.subscriberError(server.id, ctx.Service, ctx.Topic, err)
-			return
-		}
-		ctx.Metadata = msg.Header
 
 		datav := reflect.New(sub.dataType.Elem())
 		if err := server.encoder.Unmarshal(msg.Body, datav.Interface()); err != nil {
 			server.subscriberError(server.id, ctx.Service, ctx.Topic, err)
-			return
+			return -1, false
 		}
 
 		returnValues := sub.rcvr.Call([]reflect.Value{reflect.ValueOf(ctx), datav})
@@ -130,5 +145,19 @@ func (server *Server) subscribe(s *subscriber) func(topic string, header map[str
 		if errInter != nil {
 			server.subscriberError(server.id, ctx.Service, ctx.Topic, errInter.(error))
 		}
+
+		if ctx.reject {
+			switch ctx.retry {
+			case 0:
+				log.Errorf("Subscriber Rejected %s %s %s %s", server.id, ctx.Service, ctx.Topic, "reject, retry: always")
+				server.subscriberError(server.id, ctx.Service, ctx.Topic, errors.New("reject, retry: always"))
+			case -1:
+				log.Errorf("Subscriber Rejected %s %s %s %s", server.id, ctx.Service, ctx.Topic, "reject, retry: no")
+			default:
+				log.Errorf("Subscriber Rejected %s %s %s %s %d", server.id, ctx.Service, ctx.Topic, "reject, retry:", ctx.retry)
+			}
+		}
+
+		return ctx.retry, ctx.reject
 	}
 }

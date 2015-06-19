@@ -246,7 +246,7 @@ func (server *Server) stopBroker() {
 	}
 
 	server.broker.Close()
-	log.Infof("Close connection to broker")
+	log.Infof("Close broker connection")
 }
 
 func (server *Server) startSubscribe() error {

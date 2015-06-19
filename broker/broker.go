@@ -1,11 +1,19 @@
 package broker
 
+import (
+	"errors"
+)
+
+var (
+	ErrRejectWithRequeue = errors.New("reject but requeue")
+	ErrReject            = errors.New("reject")
+)
+
 type Broker interface {
-	Publish(topic string, data []byte) error
+	Publish(topic string, msg *Message) error
 	Subscribe(topic, appId string, h Handler)
-	Queue(workers int, topic string, h Handler)
 	Close()
 	Connect() error
 }
 
-type Handler func(topic string, header map[string]string, data []byte)
+type Handler func(topic string, msg *Message) (int, bool)

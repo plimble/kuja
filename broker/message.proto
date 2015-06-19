@@ -4,5 +4,6 @@ package broker;
 
 message Message {
   map<string, string> Header = 1;
-  bytes Body = 2;
+  int32 Retry = 2;
+  bytes Body = 3;
 }

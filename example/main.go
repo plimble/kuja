@@ -1,7 +1,7 @@
 package main
 
 import (
-	"errors"
+	// "errors"
 	"github.com/Sirupsen/logrus"
 	"github.com/plimble/kuja"
 	"github.com/plimble/kuja/broker/nats"
@@ -28,7 +28,8 @@ func (s *SubTest) Add(ctx *kuja.SubscribeContext, data *AddReq) error {
 	logrus.Info("get", data)
 	time.Sleep(time.Second * 2)
 	logrus.Info(ctx)
-	return errors.New("test error")
+	return ctx.Reject(3)
+	// return errors.New("test error")
 }
 
 func main() {
