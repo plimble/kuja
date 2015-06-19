@@ -66,9 +66,12 @@ func NewWithRegistry(r registry.Registry, watch bool) *DefaultClient {
 
 func (c *DefaultClient) Broker(b broker.Broker) {
 	c.broker = b
+	if err := c.broker.Connect(); err != nil {
+		panic(err)
+	}
 }
 
-func (c *DefaultClient) Publish(topic string, v interface{}, meta map[string]string) error {
+func (c *DefaultClient) Publish(service, topic string, v interface{}, meta map[string]string) error {
 	data, err := c.encoder.Marshal(v)
 	if err != nil {
 		return err
@@ -84,7 +87,7 @@ func (c *DefaultClient) Publish(topic string, v interface{}, meta map[string]str
 		return err
 	}
 
-	return c.broker.Publish(topic, msgData)
+	return c.broker.Publish(service+"."+topic, msgData)
 }
 
 func (c *DefaultClient) Encoder(enc encoder.Encoder) {

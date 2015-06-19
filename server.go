@@ -8,6 +8,7 @@ import (
 	"github.com/plimble/kuja/encoder"
 	"github.com/plimble/kuja/encoder/json"
 	"github.com/plimble/kuja/registry"
+	"github.com/satori/go.uuid"
 	"golang.org/x/net/netutil"
 	"gopkg.in/tylerb/graceful.v1"
 	"io"
@@ -22,11 +23,13 @@ import (
 type Handler func(ctx *Context, w http.ResponseWriter, r *http.Request) error
 
 type Server struct {
+	id              string
 	pool            sync.Pool
 	middleware      []Handler
 	mu              sync.Mutex // protects the serviceMap
 	serviceMap      map[string]*service
 	subscriberMap   map[string]*subscriber
+	subscribeSize   int
 	broker          broker.Broker
 	encoder         encoder.Encoder
 	snappy          bool
@@ -37,10 +40,13 @@ type Server struct {
 
 func NewServer() *Server {
 	server := &Server{
+		id:              uuid.NewV1().String(),
 		serviceMap:      make(map[string]*service),
 		encoder:         json.NewEncoder(),
 		serviceError:    defaulServiceErr,
 		subscriberError: defaulSubscriberErr,
+		subscriberMap:   make(map[string]*subscriber),
+		subscribeSize:   1,
 	}
 
 	server.pool.New = func() interface{} {
@@ -72,6 +78,10 @@ func (server *Server) Encoder(enc encoder.Encoder) {
 	server.encoder = enc
 }
 
+func (server *Server) Broker(b broker.Broker) {
+	server.broker = b
+}
+
 func (server *Server) Run(addr string, timeout time.Duration) {
 	srv := &graceful.Server{
 		Timeout: timeout,
@@ -91,21 +101,28 @@ func (server *Server) Run(addr string, timeout time.Duration) {
 		l = netutil.LimitListener(l, srv.ListenLimit)
 	}
 
-	server.start(addr)
+	if err := server.startRegistry(addr); err != nil {
+		log.Error(err)
+	}
 
-	log.Infof("Start server on %s", addr)
+	if err := server.startBroker(); err != nil {
+		log.Error(err)
+	}
+
+	if err := server.startSubscribe(); err != nil {
+		log.Error(err)
+	}
+
+	log.Infof("Start server id %s on %s", server.id, addr)
 	srv.Serve(l)
 	log.Info("Stop server")
-	server.stop()
+	server.stopRegistry()
+	server.stopBroker()
 }
 
 func (server *Server) RunTLS(addr string, timeout time.Duration, certFile, keyFile string) {
 	srv := &graceful.Server{
 		Timeout: timeout,
-		ShutdownInitiated: func() {
-			log.Info("Stop server")
-			server.stop()
-		},
 		Server: &http.Server{
 			Addr:    addr,
 			Handler: server,
@@ -137,15 +154,28 @@ func (server *Server) RunTLS(addr string, timeout time.Duration, certFile, keyFi
 
 	tlsListener := tls.NewListener(conn, config)
 
-	log.Infof("Start server %s", addr)
+	if err := server.startRegistry(addr); err != nil {
+		log.Error(err)
+	}
+
+	if err := server.startBroker(); err != nil {
+		log.Error(err)
+	}
+
+	if err := server.startSubscribe(); err != nil {
+		log.Error(err)
+	}
+
+	log.Infof("Start server id %s on %s", server.id, addr)
 	srv.Serve(tlsListener)
 	log.Info("Stop server")
-	server.stop()
+	server.stopRegistry()
+	server.stopBroker()
 }
 
-func (server *Server) start(addr string) {
+func (server *Server) startRegistry(addr string) error {
 	if server.registry == nil {
-		return
+		return nil
 	}
 
 	var host string
@@ -169,12 +199,14 @@ func (server *Server) start(addr string) {
 		err := server.registry.Register(service.node)
 		log.Infof("Registerd %s %s %s", service.name, service.id, addr)
 		if err != nil {
-			log.Error(err)
+			return err
 		}
 	}
+
+	return nil
 }
 
-func (server *Server) stop() {
+func (server *Server) stopRegistry() {
 	if server.registry != nil {
 		for _, service := range server.serviceMap {
 			if service.node == nil {
@@ -192,6 +224,44 @@ func (server *Server) stop() {
 			log.Infof("Deregisterd %s %s", service.name, service.id)
 		}
 	}
+}
+
+func (server *Server) startBroker() error {
+	if server.broker == nil {
+		return nil
+	}
+
+	if err := server.broker.Connect(); err != nil {
+		return err
+	}
+
+	log.Infof("Connected to broker")
+
+	return nil
+}
+
+func (server *Server) stopBroker() {
+	if server.broker == nil {
+		return
+	}
+
+	server.broker.Close()
+	log.Infof("Close connection to broker")
+}
+
+func (server *Server) startSubscribe() error {
+	if server.broker == nil {
+		return nil
+	}
+
+	for _, s := range server.subscriberMap {
+		for i := 0; i < server.subscribeSize; i++ {
+			server.broker.Subscribe(s.name, server.id, server.subscribe(s))
+		}
+		log.Infof("Subscribe %s %s", s.service, s.topic)
+	}
+
+	return nil
 }
 
 func getServiceMethod(s string) (string, string) {

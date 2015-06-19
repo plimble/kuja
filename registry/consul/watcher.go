@@ -3,7 +3,6 @@ package consul
 import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/watch"
-	"github.com/kr/pretty"
 	"github.com/plimble/kuja/registry"
 	"strconv"
 )
@@ -59,7 +58,6 @@ func (cw *consulWatcher) serviceHandler(idx uint64, data interface{}) {
 }
 
 func (cw *consulWatcher) Handle(idx uint64, data interface{}) {
-	pretty.Println(cw.Registry.services)
 	services, ok := data.(map[string][]string)
 	if !ok {
 		return
