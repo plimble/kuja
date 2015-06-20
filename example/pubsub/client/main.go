@@ -18,5 +18,5 @@ func main() {
 	fmt.Println(status) // 200
 	fmt.Println(err)    // nil
 
-	c.Publish("AddService", "added", &pubsub.AddReq{A: 6, B: 6}, nil)
+	c.Publish("AddService.added", &pubsub.AddReq{A: 6, B: 6}, nil)
 }

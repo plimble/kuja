@@ -257,9 +257,9 @@ func (server *Server) startSubscribe() error {
 
 	for _, s := range server.subscriberMap {
 		for i := 0; i < server.subscribeSize; i++ {
-			server.broker.Subscribe(s.name, s.queue, server.id, s.handler)
+			server.broker.Subscribe(s.topic, s.queue, server.id, s.handler)
 		}
-		log.Infof("Subscribe service: %s topic: %s queue: %s", s.service, s.topic, s.queue)
+		log.Infof("Subscribe topic: %s queue: %s", s.topic, s.queue)
 	}
 
 	return nil

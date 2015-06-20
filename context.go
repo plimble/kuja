@@ -27,7 +27,7 @@ type Context struct {
 	broker       broker.Broker
 }
 
-func (ctx *Context) Publish(service, topic string, v interface{}, meta map[string]string) error {
+func (ctx *Context) Publish(topic string, v interface{}, meta map[string]string) error {
 	data, err := ctx.encoder.Marshal(v)
 	if err != nil {
 		return err
@@ -38,7 +38,7 @@ func (ctx *Context) Publish(service, topic string, v interface{}, meta map[strin
 		Body:   data,
 	}
 
-	return ctx.broker.Publish(service+"."+topic, msg)
+	return ctx.broker.Publish(topic, msg)
 }
 
 func (ctx *Context) Next() error {

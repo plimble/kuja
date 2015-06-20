@@ -36,7 +36,7 @@ type Method interface {
 
 type Client interface {
 	Broker(b broker.Broker)
-	Publish(service, topic string, v interface{}, meta map[string]string) error
+	Publish(topic string, v interface{}, meta map[string]string) error
 	Encoder(enc encoder.Encoder)
 	AsyncRequests(as []AsyncRequest) []AsyncResponse
 	DefaultHeader(hdr map[string]string)
@@ -106,7 +106,7 @@ func (c *DefaultClient) DefaultHeader(hdr map[string]string) {
 	c.defaultHeader = hdr
 }
 
-func (c *DefaultClient) Publish(service, topic string, v interface{}, meta map[string]string) error {
+func (c *DefaultClient) Publish(topic string, v interface{}, meta map[string]string) error {
 	data, err := c.encoder.Marshal(v)
 	if err != nil {
 		return err
@@ -117,7 +117,7 @@ func (c *DefaultClient) Publish(service, topic string, v interface{}, meta map[s
 		Body:   data,
 	}
 
-	return c.broker.Publish(service+"."+topic, msg)
+	return c.broker.Publish(topic, msg)
 }
 
 func (c *DefaultClient) Encoder(enc encoder.Encoder) {

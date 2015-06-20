@@ -21,7 +21,6 @@ Go microservice framework
     - Snappy
     - Encoder
     - Middleware
-    - RateLimit
 
 ##TODO
 - RateLimit
@@ -29,6 +28,7 @@ Go microservice framework
 - Trace
 - Doc
 - Test
+- Queue timeout
 
 ##Usage
 See in [example](https://github.com/plimble/kuja/tree/master/example)

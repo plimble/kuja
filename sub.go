@@ -7,10 +7,9 @@ import (
 	"reflect"
 )
 
-type SubscriberErrorFunc func(appId, service, topic, queue string, err error)
+type SubscriberErrorFunc func(appId, topic, queue string, err error)
 
 type SubscribeContext struct {
-	Service  string
 	Topic    string
 	Metadata Metadata
 	status   string
@@ -35,34 +34,30 @@ func (ctx *SubscribeContext) Ack() error {
 }
 
 type subscriber struct {
-	name     string
 	rcvr     reflect.Value // receiver of methods for the service
 	typ      reflect.Type  // type of the receiver
-	service  string
 	topic    string
 	queue    string
 	dataType reflect.Type
 	handler  broker.Handler
 }
 
-func defaulSubscriberErr(appID, subscriber, topic, queue string, err error) {
-	log.Errorf("Subscriber Error app id: %s, subscribe: %s, topic: %s, queue: %s, err: %s", appID, subscriber, topic, queue, err)
+func defaulSubscriberErr(appID, topic, queue string, err error) {
+	log.Errorf("Subscriber Error app id: %s, topic: %s, queue: %s, err: %s", appID, topic, queue, err)
 }
 
 func (server *Server) SubscriberError(fn SubscriberErrorFunc) {
 	server.subscriberError = fn
 }
 
-func (server *Server) Subscribe(service, topic, queue string, method interface{}) {
-	if service == "" || topic == "" || queue == "" {
-		panic(errors.New("service, topic, queue should not be empty"))
+func (server *Server) Subscribe(topic, queue string, method interface{}) {
+	if topic == "" || queue == "" {
+		panic(errors.New("topic, queue should not be empty"))
 	}
 
 	s := &subscriber{
-		service: service,
-		topic:   topic,
-		queue:   queue,
-		name:    service + "." + topic,
+		topic: topic,
+		queue: queue,
 	}
 
 	if err := server.registerSub(method, s); err != nil {
@@ -117,7 +112,7 @@ func (server *Server) registerSub(method interface{}, s *subscriber) error {
 	}
 
 	s.handler = server.subscribe(s)
-	server.subscriberMap[s.name+"."+s.queue] = s
+	server.subscriberMap[s.topic+"."+s.queue] = s
 
 	return nil
 }
@@ -126,7 +121,6 @@ func (server *Server) subscribe(s *subscriber) broker.Handler {
 	return func(topic string, msg *broker.Message) (int, error) {
 		var err error
 		ctx := &SubscribeContext{
-			Service:  s.service,
 			Topic:    s.topic,
 			Queue:    s.queue,
 			Metadata: msg.Header,
@@ -134,12 +128,12 @@ func (server *Server) subscribe(s *subscriber) broker.Handler {
 		}
 
 		if msg.Retry > 0 {
-			log.Errorf("Subscriber Error app id: %s, subscribe: %s, topic: %s, queue: %s, retry: %d", server.id, ctx.Service, ctx.Topic, ctx.Queue, msg.Retry)
+			log.Infof("Subscriber Error app id: %s, topic: %s, queue: %s, retry: %d", server.id, ctx.Topic, ctx.Queue, msg.Retry)
 		}
 
 		datav := reflect.New(s.dataType.Elem())
 		if err = server.encoder.Unmarshal(msg.Body, datav.Interface()); err != nil {
-			server.subscriberError(server.id, ctx.Service, ctx.Topic, ctx.Queue, err)
+			server.subscriberError(server.id, ctx.Topic, ctx.Queue, err)
 			return 0, err
 		}
 
@@ -147,7 +141,7 @@ func (server *Server) subscribe(s *subscriber) broker.Handler {
 		errInter := returnValues[0].Interface()
 		if errInter != nil {
 			err = errInter.(error)
-			server.subscriberError(server.id, ctx.Service, ctx.Topic, ctx.Queue, err)
+			server.subscriberError(server.id, ctx.Topic, ctx.Queue, err)
 			return ctx.retry, err
 		}
 
