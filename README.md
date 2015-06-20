@@ -7,14 +7,14 @@ Go microservice framework
 - Client
     - Reuqest/Async Requests
     - Publish
-    - Reties/Timeout
+    - Request Reties/Timeout
     - Service Discovery/Watch
     - Encoder
     - Circuit breaker
 - Server
     - HTTP POST like RPC style
     - Publish/Subscribe Queue
-    - Retries Queue
+    - Retries/Timeout Queue
     - Graceful Shutdown
     - Custom Error
     - Register Etcd/Consul
@@ -23,12 +23,10 @@ Go microservice framework
     - Middleware
 
 ##TODO
-- RateLimit
 - Circuit breaker
 - Trace
 - Doc
 - Test
-- Queue timeout
 
 ##Usage
 See in [example](https://github.com/plimble/kuja/tree/master/example)

@@ -5,6 +5,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/plimble/kuja/broker"
 	"reflect"
+	"time"
 )
 
 type SubscriberErrorFunc func(appId, topic, queue string, err error)
@@ -40,6 +41,7 @@ type subscriber struct {
 	queue    string
 	dataType reflect.Type
 	handler  broker.Handler
+	timeout  time.Duration
 }
 
 func defaulSubscriberErr(appID, topic, queue string, err error) {
@@ -50,14 +52,15 @@ func (server *Server) SubscriberError(fn SubscriberErrorFunc) {
 	server.subscriberError = fn
 }
 
-func (server *Server) Subscribe(topic, queue string, method interface{}) {
+func (server *Server) Subscribe(topic, queue string, timeout time.Duration, method interface{}) {
 	if topic == "" || queue == "" {
 		panic(errors.New("topic, queue should not be empty"))
 	}
 
 	s := &subscriber{
-		topic: topic,
-		queue: queue,
+		topic:   topic,
+		queue:   queue,
+		timeout: timeout,
 	}
 
 	if err := server.registerSub(method, s); err != nil {
@@ -111,10 +114,68 @@ func (server *Server) registerSub(method interface{}, s *subscriber) error {
 		return nil
 	}
 
-	s.handler = server.subscribe(s)
+	if s.timeout == 0 {
+		s.handler = server.subscribe(s)
+	} else {
+		s.handler = server.subscribeTimeout(s)
+	}
 	server.subscriberMap[s.topic+"."+s.queue] = s
 
 	return nil
+}
+
+type subResponse struct {
+	retry int
+	err   error
+}
+
+func (server *Server) subscribeTimeout(s *subscriber) broker.Handler {
+	return func(topic string, msg *broker.Message) (int, error) {
+		var err error
+		ch := make(chan *subResponse)
+
+		ctx := &SubscribeContext{
+			Topic:    s.topic,
+			Queue:    s.queue,
+			Metadata: msg.Header,
+			retry:    0,
+		}
+
+		if msg.Retry > 0 {
+			log.Infof("Subscriber Error app id: %s, topic: %s, queue: %s, retry: %d", server.id, ctx.Topic, ctx.Queue, msg.Retry)
+		}
+
+		datav := reflect.New(s.dataType.Elem())
+		if err = server.encoder.Unmarshal(msg.Body, datav.Interface()); err != nil {
+			server.subscriberError(server.id, ctx.Topic, ctx.Queue, err)
+			return 0, err
+		}
+
+		go func() {
+			returnValues := s.rcvr.Call([]reflect.Value{reflect.ValueOf(ctx), datav})
+			errInter := returnValues[0].Interface()
+			if errInter != nil {
+				err := errInter.(error)
+				server.subscriberError(server.id, ctx.Topic, ctx.Queue, err)
+				ch <- &subResponse{ctx.retry, err}
+				return
+			}
+
+			ch <- &subResponse{0, nil}
+		}()
+
+		for {
+			select {
+			case resp := <-ch:
+				return resp.retry, resp.err
+			case <-time.After(s.timeout):
+				server.subscriberError(server.id, ctx.Topic, ctx.Queue, errors.New("time out"))
+				return 0, nil
+			}
+		}
+
+		return 0, nil
+	}
 }
 
 func (server *Server) subscribe(s *subscriber) broker.Handler {

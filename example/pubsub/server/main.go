@@ -4,6 +4,7 @@ import (
 	"github.com/plimble/kuja"
 	"github.com/plimble/kuja/broker/rabbitmq"
 	"github.com/plimble/kuja/example/pubsub"
+	"time"
 )
 
 func main() {
@@ -16,10 +17,11 @@ func main() {
 	// Each message will be delivered to only one subscriber per queue group,
 	// using queuing semantics. You can have as many queue groups as you wish.
 	// Normal subscribers will continue to work as expected.
-	server.Subscribe("AddService.added", "add", sub.Add)
-	server.Subscribe("AddService.added", "sub", sub.Sub)
-	server.Subscribe("AddService.added", "multiply", sub.Multiply)
-	server.Subscribe("AddService.added", "devide", sub.Divide)
+	server.Subscribe("AddService.added", "add", 0, sub.Add)
+	server.Subscribe("AddService.added", "sub", 0, sub.Sub)
+	server.Subscribe("AddService.added", "multiply", 0, sub.Multiply)
+	server.Subscribe("AddService.added", "devide", 0, sub.Divide)
+	server.Subscribe("AddService.added", "long", time.Second*2, sub.Longrunning)
 
 	// 10 workers for each subscription
 	server.SubscribeSize(10)

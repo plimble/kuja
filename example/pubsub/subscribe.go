@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/plimble/kuja"
 	"log"
+	"time"
 )
 
 type Subscibers struct{}
@@ -28,4 +29,10 @@ func (s *Subscibers) Multiply(ctx *kuja.SubscribeContext, req *AddReq) error {
 func (s *Subscibers) Divide(ctx *kuja.SubscribeContext, req *AddReq) error {
 	log.Println("Subscribe Divide triggered")
 	return errors.New("error in divide")
+}
+
+func (s *Subscibers) Longrunning(ctx *kuja.SubscribeContext, req *AddReq) error {
+	log.Println("Subscribe Longrunning triggered")
+	time.Sleep(time.Second * 4)
+	return errors.New("error in Longrunning")
 }
