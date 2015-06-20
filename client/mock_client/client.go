@@ -1,0 +1,49 @@
+package mock_client
+
+import "github.com/plimble/kuja/client"
+import "github.com/stretchr/testify/mock"
+
+import "github.com/plimble/kuja/broker"
+import "github.com/plimble/kuja/encoder"
+
+import "net/http"
+
+type MockClient struct {
+	mock.Mock
+}
+
+func NewMockClient() *MockClient {
+	return &MockClient{}
+}
+
+func (m *MockClient) Broker(b broker.Broker) {
+	m.Called(b)
+}
+func (m *MockClient) Publish(service string, topic string, v interface{}, meta map[string]string) error {
+	ret := m.Called(service, topic, v, meta)
+
+	r0 := ret.Error(0)
+
+	return r0
+}
+func (m *MockClient) Encoder(enc encoder.Encoder) {
+	m.Called(enc)
+}
+func (m *MockClient) AsyncRequests(as []client.AsyncRequest) []client.AsyncResponse {
+	ret := m.Called(as)
+
+	var r0 []client.AsyncResponse
+	if ret.Get(0) != nil {
+		r0 = ret.Get(0).([]client.AsyncResponse)
+	}
+
+	return r0
+}
+func (m *MockClient) Request(service string, method string, reqv interface{}, respv interface{}, header http.Header) (int, error) {
+	ret := m.Called(service, method, reqv, respv, header)
+
+	r0 := ret.Get(0).(int)
+	r1 := ret.Error(1)
+
+	return r0, r1
+}

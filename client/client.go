@@ -3,6 +3,7 @@ package client
 import (
 	"bytes"
 	"errors"
+	"github.com/facebookgo/httpcontrol"
 	"github.com/golang/snappy/snappy"
 	"github.com/plimble/kuja/broker"
 	"github.com/plimble/kuja/encoder"
@@ -11,17 +12,34 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 )
 
 //go:generate mockery -name Client
+
+type AsyncRequest struct {
+	Service  string
+	Method   string
+	Request  interface{}
+	Response interface{}
+	Metadata http.Header
+}
+
+type AsyncResponse struct {
+	Status int
+	Error  error
+}
 
 type Method interface {
 	GetAddress(service, method string) (string, error)
 }
 
 type Client interface {
-	Call(service, method string, reqv interface{}, respv interface{}, header http.Header) (int, error)
+	Broker(b broker.Broker)
+	Publish(service, topic string, v interface{}, meta map[string]string) error
 	Encoder(enc encoder.Encoder)
+	AsyncRequests(as []AsyncRequest) []AsyncResponse
+	Request(service, method string, reqv interface{}, respv interface{}, header http.Header) (int, error)
 }
 
 type HeaderFunc func(header http.Header)
@@ -32,9 +50,12 @@ type DefaultClient struct {
 	encoder       encoder.Encoder
 	broker        broker.Broker
 	DefaultHeader http.Header
+	retry         int
+	timeout       time.Duration
+	client        *http.Client
 }
 
-func New(url string) *DefaultClient {
+func New(url string) Client {
 	if strings.HasPrefix(url, "/") {
 		url = url[:len(url)-1]
 	}
@@ -42,6 +63,12 @@ func New(url string) *DefaultClient {
 	d := &DefaultClient{
 		method:  &Direct{url},
 		encoder: json.NewEncoder(),
+		client: &http.Client{
+			Transport: &httpcontrol.Transport{
+				RequestTimeout: 0,
+				MaxTries:       0,
+			},
+		},
 	}
 
 	d.pool.New = func() interface{} {
@@ -51,7 +78,7 @@ func New(url string) *DefaultClient {
 	return d
 }
 
-func NewWithRegistry(r registry.Registry, watch bool) *DefaultClient {
+func NewWithRegistry(r registry.Registry, watch bool) Client {
 	if watch {
 		r.Watch()
 	}
@@ -61,6 +88,12 @@ func NewWithRegistry(r registry.Registry, watch bool) *DefaultClient {
 			registry: r,
 		},
 		encoder: json.NewEncoder(),
+		client: &http.Client{
+			Transport: &httpcontrol.Transport{
+				RequestTimeout: 0,
+				MaxTries:       0,
+			},
+		},
 	}
 }
 
@@ -89,37 +122,26 @@ func (c *DefaultClient) Encoder(enc encoder.Encoder) {
 	c.encoder = enc
 }
 
-func (c *DefaultClient) AsyncRequest(service, method string, reqv interface{}, respv interface{}, header http.Header) error {
-	var err error
+func (c *DefaultClient) AsyncRequests(as []AsyncRequest) []AsyncResponse {
+	done := make(chan AsyncResponse, len(as))
+	// arespChan := make(chan *AsyncResponse, len(as))
+	aresps := make([]AsyncResponse, 0, len(as))
 
-	addr, err := c.method.GetAddress(service, method)
-	if err != nil {
-		return err
+	for i := 0; i < len(as); i++ {
+		go func(index int) {
+			status, err := c.Request(as[index].Service, as[index].Method, as[index].Request, as[index].Response, as[index].Metadata)
+			done <- AsyncResponse{status, err}
+		}(i)
 	}
 
-	data, err := c.encoder.Marshal(reqv)
-	if err != nil {
-		return err
-	}
-	buf := bytes.NewBuffer(data)
-
-	req, err := http.NewRequest("POST", addr, buf)
-	if err != nil {
-
-		return err
+	for aresp := range done {
+		aresps = append(aresps, aresp)
+		if len(aresps) == len(as) {
+			break
+		}
 	}
 
-	for name, val := range c.DefaultHeader {
-		req.Header.Set(name, val[0])
-	}
-
-	for name, val := range header {
-		req.Header.Set(name, val[0])
-	}
-
-	go http.DefaultClient.Do(req)
-
-	return nil
+	return aresps
 }
 
 func (c *DefaultClient) Request(service, method string, reqv interface{}, respv interface{}, header http.Header) (int, error) {
@@ -149,7 +171,7 @@ func (c *DefaultClient) Request(service, method string, reqv interface{}, respv 
 		req.Header.Set(name, val[0])
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := c.client.Do(req)
 	if err != nil {
 		return 0, err
 	}
