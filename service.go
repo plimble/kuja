@@ -74,7 +74,7 @@ func (server *Server) register(rcvr interface{}, name string, useName bool, h []
 	}
 	if !isExported(sname) && !useName {
 		s := "rpc Register: type " + sname + " is not exported"
-		log.Print(s)
+		log.Errorln(s)
 		return errors.New(s)
 	}
 	if _, present := server.serviceMap[sname]; present {
@@ -93,7 +93,7 @@ func (server *Server) register(rcvr interface{}, name string, useName bool, h []
 
 	if len(s.method) == 0 {
 		s := "rpc Register: type " + sname + " has no exported methods of suitable type"
-		log.Print(s)
+		log.Errorln(s)
 		return errors.New(s)
 	}
 	server.serviceMap[s.name] = s
@@ -119,67 +119,42 @@ func prepareMethod(method reflect.Method) *methodType {
 	}
 
 	switch mtype.NumIn() {
-	case 3:
-		// normal method
-		argType = mtype.In(1)
-		replyType = mtype.In(2)
-		contextType = nil
 	case 4:
 		// method that takes a context
 		argType = mtype.In(2)
 		replyType = mtype.In(3)
 		contextType = mtype.In(1)
 	default:
-		log.Println("method", mname, "of", mtype, "has wrong number of ins:", mtype.NumIn())
+		log.Errorln("method", mname, "of", mtype, "has wrong number of ins:", mtype.NumIn())
 		return nil
 	}
 
 	// First arg need not be a pointer.
 	if !isExportedOrBuiltinType(argType) {
-		log.Println(mname, "argument type not exported:", argType)
+		log.Errorln(mname, "argument type not exported:", argType)
 		return nil
 	}
 
 	// the second argument will tell us if it's a streaming call
 	// or a regular call
-	if replyType.Kind() == reflect.Func {
-		// this is a streaming call
-		stream = true
-		if replyType.NumIn() != 1 {
-			log.Println("method", mname, "sendReply has wrong number of ins:", replyType.NumIn())
-			return nil
-		}
-		if replyType.In(0).Kind() != reflect.Interface {
-			log.Println("method", mname, "sendReply parameter type not an interface:", replyType.In(0))
-			return nil
-		}
-		if replyType.NumOut() != 1 {
-			log.Println("method", mname, "sendReply has wrong number of outs:", replyType.NumOut())
-			return nil
-		}
-		if returnType := replyType.Out(0); returnType != typeOfError {
-			log.Println("method", mname, "sendReply returns", returnType.String(), "not error")
-			return nil
-		}
-
-	} else if replyType.Kind() != reflect.Ptr {
-		log.Println("method", mname, "reply type not a pointer:", replyType)
+	if replyType.Kind() != reflect.Ptr {
+		log.Errorln("method", mname, "reply type not a pointer:", replyType)
 		return nil
 	}
 
 	// Reply type must be exported.
 	if !isExportedOrBuiltinType(replyType) {
-		log.Println("method", mname, "reply type not exported:", replyType)
+		log.Errorln("method", mname, "reply type not exported:", replyType)
 		return nil
 	}
 	// Method needs one out.
 	if mtype.NumOut() != 1 {
-		log.Println("method", mname, "has wrong number of outs:", mtype.NumOut())
+		log.Errorln("method", mname, "has wrong number of outs:", mtype.NumOut())
 		return nil
 	}
 	// The return type of the method must be error.
 	if returnType := mtype.Out(0); returnType != typeOfError {
-		log.Println("method", mname, "returns", returnType.String(), "not error")
+		log.Errorln("method", mname, "returns", returnType.String(), "not error")
 		return nil
 	}
 	return &methodType{method: method, ArgType: argType, ReplyType: replyType, ContextType: contextType, stream: stream}

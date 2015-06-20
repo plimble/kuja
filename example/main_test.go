@@ -1,7 +1,8 @@
 package main
 
 import (
-	"github.com/plimble/kuja/broker/nats"
+	"github.com/plimble/kuja/broker/rabbitmq"
+	// "github.com/plimble/kuja/broker/nats"
 	"github.com/plimble/kuja/client"
 	"github.com/plimble/kuja/encoder/gogoproto"
 	"github.com/streadway/amqp"
@@ -36,7 +37,8 @@ func TestPublish(t *testing.T) {
 	var err error
 	c := client.New("http://127.0.0.1:3002")
 	c.Encoder(gogoproto.NewEncoder())
-	c.Broker(nats.NewBroker("nats://127.0.0.1:4222"))
+	// c.Broker(nats.NewBroker("nats://127.0.0.1:4222"))
+	c.Broker(rabbitmq.NewBroker("amqp://guest:guest@plimble.com:5672/"))
 
 	addreq := &AddReq{5, 7}
 	addresp := &AddResp{}

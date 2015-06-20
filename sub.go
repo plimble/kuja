@@ -40,6 +40,7 @@ type subscriber struct {
 	typ      reflect.Type  // type of the receiver
 	service  string
 	topic    string
+	queue    string
 	dataType reflect.Type
 }
 
@@ -51,14 +52,15 @@ func (server *Server) SubscriberError(fn SubscriberErrorFunc) {
 	server.subscriberError = fn
 }
 
-func (server *Server) Subscribe(service, topic string, method interface{}) {
-	if server.broker == nil {
-		panic(errors.New("no broker registered"))
+func (server *Server) Subscribe(service, topic, queue string, method interface{}) {
+	if service == "" || topic == "" || queue == "" {
+		panic(errors.New("service, topic, queue should not be empty"))
 	}
 
 	s := &subscriber{
 		service: service,
 		topic:   topic,
+		queue:   queue,
 		name:    service + "." + topic,
 	}
 
@@ -154,7 +156,7 @@ func (server *Server) subscribe(s *subscriber) broker.Handler {
 			case -1:
 				log.Errorf("Subscriber Rejected %s %s %s %s", server.id, ctx.Service, ctx.Topic, "reject, retry: no")
 			default:
-				log.Errorf("Subscriber Rejected %s %s %s %s %d", server.id, ctx.Service, ctx.Topic, "reject, retry:", ctx.retry)
+				log.Errorf("Subscriber Rejected %s %s %s %s %d of %d", server.id, ctx.Service, ctx.Topic, "reject, retry:", msg.Retry, ctx.retry)
 			}
 		}
 

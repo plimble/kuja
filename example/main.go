@@ -1,10 +1,10 @@
 package main
 
 import (
+	"github.com/plimble/kuja/broker/rabbitmq"
 	// "errors"
 	"github.com/Sirupsen/logrus"
 	"github.com/plimble/kuja"
-	"github.com/plimble/kuja/broker/nats"
 	// "github.com/plimble/kuja/broker/nats"
 	"github.com/plimble/kuja/encoder/gogoproto"
 	// "github.com/plimble/kuja/registry/consul"
@@ -29,6 +29,7 @@ func (s *SubTest) Add(ctx *kuja.SubscribeContext, data *AddReq) error {
 	time.Sleep(time.Second * 2)
 	logrus.Info(ctx)
 	return ctx.Reject(3)
+	// return ctx.Ack()
 	// return errors.New("test error")
 }
 
@@ -37,9 +38,10 @@ func main() {
 	s.Service(&ServiceTest{})
 	s.Snappy(true)
 	s.Encoder(gogoproto.NewEncoder())
-	s.Broker(nats.NewBroker("nats://127.0.0.1:4222"))
+	s.Broker(rabbitmq.NewBroker("amqp://guest:guest@plimble.com:5672/"))
+	// s.Broker(nats.NewBroker("nats://127.0.0.1:4222"))
 	sub := &SubTest{}
-	s.Subscribe("SubTest", "Add", sub.Add)
+	s.Subscribe("SubTest", "Add", "example", sub.Add)
 	s.SubscribeSize(10)
 
 	conn, _ := amqp.Dial("amqp://guest:guest@plimble.com:5672/")
@@ -47,6 +49,7 @@ func main() {
 	ch, _ := conn.Channel()
 	defer ch.Close()
 
+	// topic
 	ch.ExchangeDeclare(
 		"uploader_received", // name
 		"fanout",            // type
@@ -57,6 +60,7 @@ func main() {
 		nil,                 // arguments
 	)
 
+	// appid
 	q, _ := ch.QueueDeclare(
 		"q1",  // name
 		true,  // durable

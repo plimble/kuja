@@ -35,8 +35,8 @@ func (n *natsBroker) Publish(topic string, msg *broker.Message) error {
 	return n.conn.Publish(topic, data)
 }
 
-func (n *natsBroker) Subscribe(topic, appId string, h broker.Handler) {
-	n.conn.QueueSubscribe(topic, appId, func(msg *nats.Msg) {
+func (n *natsBroker) Subscribe(topic, queue, appId string, h broker.Handler) {
+	n.conn.QueueSubscribe(topic, queue, func(msg *nats.Msg) {
 		brokerMsg := &broker.Message{}
 		brokerMsg.Unmarshal(msg.Data)
 		retryCount, reject := h(msg.Subject, brokerMsg)
