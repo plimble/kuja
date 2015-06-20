@@ -18,5 +18,5 @@ func (d *Discovery) GetAddress(service, method string) (string, error) {
 	n := rand.Int() % len(s.Nodes)
 	node := s.Nodes[n]
 
-	return node.Address, nil
+	return node.URL + "/" + service + "/" + method, nil
 }

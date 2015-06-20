@@ -5,21 +5,30 @@ Go microservice framework
 
 ##Features
 - Client
-  - Reuqest/Async Requests
-  - Reties/Timeout
-  - Service Discovery
-  - Encoder
+    - Reuqest/Async Requests
+    - Publish
+    - Reties/Timeout
+    - Service Discovery/Watch
+    - Encoder
+    - Circuit breaker
 - Server
-  - HTTP POST like RPC style
-  - Pub/Sub Queue
-  - Retries Queue
-  - Graceful Shutdown
-  - Custom Error
-  - Registry Etcd/Consul
-  - Snappy
-  - Encoder
-  - Middleware
+    - HTTP POST like RPC style
+    - Publish/Subscribe Queue
+    - Retries Queue
+    - Graceful Shutdown
+    - Custom Error
+    - Register Etcd/Consul
+    - Snappy
+    - Encoder
+    - Middleware
+    - RateLimit
 
+##TODO
+- RateLimit
+- Circuit breaker
+- Trace
+- Doc
+- Test
 
 ##Usage
 

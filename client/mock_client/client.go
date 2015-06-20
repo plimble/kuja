@@ -6,8 +6,6 @@ import "github.com/stretchr/testify/mock"
 import "github.com/plimble/kuja/broker"
 import "github.com/plimble/kuja/encoder"
 
-import "net/http"
-
 type MockClient struct {
 	mock.Mock
 }
@@ -39,7 +37,10 @@ func (m *MockClient) AsyncRequests(as []client.AsyncRequest) []client.AsyncRespo
 
 	return r0
 }
-func (m *MockClient) Request(service string, method string, reqv interface{}, respv interface{}, header http.Header) (int, error) {
+func (m *MockClient) DefaultHeader(hdr map[string]string) {
+	m.Called(hdr)
+}
+func (m *MockClient) Request(service string, method string, reqv interface{}, respv interface{}, header map[string]string) (int, error) {
 	ret := m.Called(service, method, reqv, respv, header)
 
 	r0 := ret.Get(0).(int)

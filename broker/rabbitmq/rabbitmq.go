@@ -107,20 +107,19 @@ func (r *rabbitmqBroker) Subscribe(topic, queue, appId string, h broker.Handler)
 		for d := range consume {
 			brokerMsg := &broker.Message{}
 			brokerMsg.Unmarshal(d.Body)
-			retryCount, reject := h(topic, brokerMsg)
-			if reject {
-				if retryCount == 0 {
-					r.Publish(topic, brokerMsg)
-					d.Ack(false)
-				} else if brokerMsg.Retry < int32(retryCount) {
-					brokerMsg.Retry++
-					r.Publish(topic, brokerMsg)
-					d.Ack(false)
-				} else {
-					d.Ack(false)
-				}
-			} else {
+			retryCount, err := h(topic, brokerMsg)
+			if err == nil {
 				d.Ack(false)
+			} else {
+				for i := 0; i < retryCount; i++ {
+					brokerMsg.Retry++
+					_, err := h(topic, brokerMsg)
+					if err == nil {
+						d.Ack(false)
+						break
+					}
+				}
+				d.Reject(false)
 			}
 		}
 	}()

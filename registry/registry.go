@@ -11,6 +11,7 @@ type Node struct {
 	Host    string
 	Port    string
 	Address string
+	URL     string
 }
 
 type Watcher interface {

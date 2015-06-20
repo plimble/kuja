@@ -2,6 +2,7 @@ package client
 
 import (
 	"bytes"
+	"crypto/tls"
 	"errors"
 	"github.com/facebookgo/httpcontrol"
 	"github.com/golang/snappy/snappy"
@@ -11,7 +12,6 @@ import (
 	"github.com/plimble/kuja/registry"
 	"net/http"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -22,7 +22,7 @@ type AsyncRequest struct {
 	Method   string
 	Request  interface{}
 	Response interface{}
-	Metadata http.Header
+	Metadata map[string]string
 }
 
 type AsyncResponse struct {
@@ -39,23 +39,23 @@ type Client interface {
 	Publish(service, topic string, v interface{}, meta map[string]string) error
 	Encoder(enc encoder.Encoder)
 	AsyncRequests(as []AsyncRequest) []AsyncResponse
-	Request(service, method string, reqv interface{}, respv interface{}, header http.Header) (int, error)
+	DefaultHeader(hdr map[string]string)
+	Request(service, method string, reqv interface{}, respv interface{}, header map[string]string) (int, error)
 }
 
 type HeaderFunc func(header http.Header)
 
 type DefaultClient struct {
-	pool          sync.Pool
 	method        Method
 	encoder       encoder.Encoder
 	broker        broker.Broker
-	DefaultHeader http.Header
+	defaultHeader map[string]string
 	retry         int
 	timeout       time.Duration
 	client        *http.Client
 }
 
-func New(url string) Client {
+func New(url string, tlsConfig *tls.Config) Client {
 	if strings.HasPrefix(url, "/") {
 		url = url[:len(url)-1]
 	}
@@ -65,20 +65,17 @@ func New(url string) Client {
 		encoder: json.NewEncoder(),
 		client: &http.Client{
 			Transport: &httpcontrol.Transport{
-				RequestTimeout: 0,
-				MaxTries:       0,
+				RequestTimeout:  0,
+				MaxTries:        0,
+				TLSClientConfig: tlsConfig,
 			},
 		},
-	}
-
-	d.pool.New = func() interface{} {
-		return bytes.NewBuffer(make([]byte, 0, bytes.MinRead))
 	}
 
 	return d
 }
 
-func NewWithRegistry(r registry.Registry, watch bool) Client {
+func NewWithRegistry(r registry.Registry, watch bool, tlsConfig *tls.Config) Client {
 	if watch {
 		r.Watch()
 	}
@@ -90,8 +87,9 @@ func NewWithRegistry(r registry.Registry, watch bool) Client {
 		encoder: json.NewEncoder(),
 		client: &http.Client{
 			Transport: &httpcontrol.Transport{
-				RequestTimeout: 0,
-				MaxTries:       0,
+				RequestTimeout:  0,
+				MaxTries:        0,
+				TLSClientConfig: tlsConfig,
 			},
 		},
 	}
@@ -102,6 +100,10 @@ func (c *DefaultClient) Broker(b broker.Broker) {
 	if err := c.broker.Connect(); err != nil {
 		panic(err)
 	}
+}
+
+func (c *DefaultClient) DefaultHeader(hdr map[string]string) {
+	c.defaultHeader = hdr
 }
 
 func (c *DefaultClient) Publish(service, topic string, v interface{}, meta map[string]string) error {
@@ -144,7 +146,7 @@ func (c *DefaultClient) AsyncRequests(as []AsyncRequest) []AsyncResponse {
 	return aresps
 }
 
-func (c *DefaultClient) Request(service, method string, reqv interface{}, respv interface{}, header http.Header) (int, error) {
+func (c *DefaultClient) Request(service, method string, reqv interface{}, respv interface{}, header map[string]string) (int, error) {
 	var err error
 
 	addr, err := c.method.GetAddress(service, method)
@@ -163,12 +165,12 @@ func (c *DefaultClient) Request(service, method string, reqv interface{}, respv 
 		return 0, err
 	}
 
-	for name, val := range c.DefaultHeader {
-		req.Header.Set(name, val[0])
+	for name, val := range c.defaultHeader {
+		req.Header.Set(name, val)
 	}
 
 	for name, val := range header {
-		req.Header.Set(name, val[0])
+		req.Header.Set(name, val)
 	}
 
 	resp, err := c.client.Do(req)

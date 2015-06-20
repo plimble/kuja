@@ -101,7 +101,7 @@ func (server *Server) Run(addr string, timeout time.Duration) {
 		l = netutil.LimitListener(l, srv.ListenLimit)
 	}
 
-	if err := server.startRegistry(addr); err != nil {
+	if err := server.startRegistry("http://", addr); err != nil {
 		log.Error(err)
 	}
 
@@ -154,7 +154,7 @@ func (server *Server) RunTLS(addr string, timeout time.Duration, certFile, keyFi
 
 	tlsListener := tls.NewListener(conn, config)
 
-	if err := server.startRegistry(addr); err != nil {
+	if err := server.startRegistry("https://", addr); err != nil {
 		log.Error(err)
 	}
 
@@ -173,7 +173,7 @@ func (server *Server) RunTLS(addr string, timeout time.Duration, certFile, keyFi
 	server.stopBroker()
 }
 
-func (server *Server) startRegistry(addr string) error {
+func (server *Server) startRegistry(scheme, addr string) error {
 	if server.registry == nil {
 		return nil
 	}
@@ -195,6 +195,7 @@ func (server *Server) startRegistry(addr string) error {
 			Host:    host,
 			Port:    port,
 			Address: addr,
+			URL:     scheme + addr,
 		}
 		err := server.registry.Register(service.node)
 		log.Infof("Registerd %s %s %s", service.name, service.id, addr)
@@ -256,7 +257,7 @@ func (server *Server) startSubscribe() error {
 
 	for _, s := range server.subscriberMap {
 		for i := 0; i < server.subscribeSize; i++ {
-			server.broker.Subscribe(s.name, s.queue, server.id, server.subscribe(s))
+			server.broker.Subscribe(s.name, s.queue, server.id, s.handler)
 		}
 		log.Infof("Subscribe service: %s topic: %s queue: %s", s.service, s.topic, s.queue)
 	}
@@ -329,6 +330,7 @@ func (server *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	ctx.ServiceID = s.id
 	ctx.ServiceName = serviceName
 	ctx.MethodName = methodName
+	ctx.broker = server.broker
 
 	if len(s.handlers) > 0 {
 		if err := s.handlers[0](ctx, w, req); err != nil && !ctx.isResp {

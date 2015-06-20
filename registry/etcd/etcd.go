@@ -81,6 +81,10 @@ func (e *EtcdRegistry) GetService(name string) (*registry.Service, error) {
 		Nodes: []*registry.Node{},
 	}
 
+	if rsp == nil {
+		return nil, errors.New("service " + name + " not found")
+	}
+
 	for _, n := range rsp.Node.Nodes {
 		if n.Dir {
 			continue

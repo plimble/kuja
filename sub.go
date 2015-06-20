@@ -7,7 +7,7 @@ import (
 	"reflect"
 )
 
-type SubscriberErrorFunc func(serverId, service, topic string, err error)
+type SubscriberErrorFunc func(appId, service, topic, queue string, err error)
 
 type SubscribeContext struct {
 	Service  string
@@ -15,19 +15,19 @@ type SubscribeContext struct {
 	Metadata Metadata
 	status   string
 	retry    int
-	reject   bool
+	Queue    string
 }
 
-func (ctx *SubscribeContext) Reject(retry int) error {
-	ctx.reject = true
-	if retry > -1 {
+func (ctx *SubscribeContext) Reject(retry int, err error) error {
+	if retry > 0 {
 		ctx.retry = retry
-		return nil
 	}
 
-	ctx.retry = -1
+	if err == nil {
+		err = errors.New("rejected")
+	}
 
-	return nil
+	return err
 }
 
 func (ctx *SubscribeContext) Ack() error {
@@ -42,10 +42,11 @@ type subscriber struct {
 	topic    string
 	queue    string
 	dataType reflect.Type
+	handler  broker.Handler
 }
 
-func defaulSubscriberErr(subscriberID, subscriber, topic string, err error) {
-	log.Errorf("Subscriber Error %s %s %s %s", subscriberID, subscriber, topic, err)
+func defaulSubscriberErr(appID, subscriber, topic, queue string, err error) {
+	log.Errorf("Subscriber Error app id: %s, subscribe: %s, topic: %s, queue: %s, err: %s", appID, subscriber, topic, queue, err)
 }
 
 func (server *Server) SubscriberError(fn SubscriberErrorFunc) {
@@ -115,51 +116,41 @@ func (server *Server) registerSub(method interface{}, s *subscriber) error {
 		return nil
 	}
 
-	server.subscriberMap[s.name] = s
+	s.handler = server.subscribe(s)
+	server.subscriberMap[s.name+"."+s.queue] = s
 
 	return nil
 }
 
 func (server *Server) subscribe(s *subscriber) broker.Handler {
-	return func(topic string, msg *broker.Message) (int, bool) {
-		sub, ok := server.subscriberMap[topic]
-		if !ok {
-			server.subscriberError("", "", "", errors.New("no topic"+topic))
-			return -1, false
-		}
-
+	return func(topic string, msg *broker.Message) (int, error) {
+		var err error
 		ctx := &SubscribeContext{
-			Service:  sub.service,
-			Topic:    sub.topic,
+			Service:  s.service,
+			Topic:    s.topic,
+			Queue:    s.queue,
 			Metadata: msg.Header,
-			retry:    -1,
-			reject:   false,
+			retry:    0,
 		}
 
-		datav := reflect.New(sub.dataType.Elem())
-		if err := server.encoder.Unmarshal(msg.Body, datav.Interface()); err != nil {
-			server.subscriberError(server.id, ctx.Service, ctx.Topic, err)
-			return -1, false
+		if msg.Retry > 0 {
+			log.Errorf("Subscriber Error app id: %s, subscribe: %s, topic: %s, queue: %s, retry: %d", server.id, ctx.Service, ctx.Topic, ctx.Queue, msg.Retry)
 		}
 
-		returnValues := sub.rcvr.Call([]reflect.Value{reflect.ValueOf(ctx), datav})
+		datav := reflect.New(s.dataType.Elem())
+		if err = server.encoder.Unmarshal(msg.Body, datav.Interface()); err != nil {
+			server.subscriberError(server.id, ctx.Service, ctx.Topic, ctx.Queue, err)
+			return 0, err
+		}
+
+		returnValues := s.rcvr.Call([]reflect.Value{reflect.ValueOf(ctx), datav})
 		errInter := returnValues[0].Interface()
 		if errInter != nil {
-			server.subscriberError(server.id, ctx.Service, ctx.Topic, errInter.(error))
+			err = errInter.(error)
+			server.subscriberError(server.id, ctx.Service, ctx.Topic, ctx.Queue, err)
+			return ctx.retry, err
 		}
 
-		if ctx.reject {
-			switch ctx.retry {
-			case 0:
-				log.Errorf("Subscriber Rejected %s %s %s %s", server.id, ctx.Service, ctx.Topic, "reject, retry: always")
-				server.subscriberError(server.id, ctx.Service, ctx.Topic, errors.New("reject, retry: always"))
-			case -1:
-				log.Errorf("Subscriber Rejected %s %s %s %s", server.id, ctx.Service, ctx.Topic, "reject, retry: no")
-			default:
-				log.Errorf("Subscriber Rejected %s %s %s %s %d of %d", server.id, ctx.Service, ctx.Topic, "reject, retry:", msg.Retry, ctx.retry)
-			}
-		}
-
-		return ctx.retry, ctx.reject
+		return 0, nil
 	}
 }

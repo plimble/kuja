@@ -39,13 +39,14 @@ func (n *natsBroker) Subscribe(topic, queue, appId string, h broker.Handler) {
 	n.conn.QueueSubscribe(topic, queue, func(msg *nats.Msg) {
 		brokerMsg := &broker.Message{}
 		brokerMsg.Unmarshal(msg.Data)
-		retryCount, reject := h(msg.Subject, brokerMsg)
-		if reject {
-			if retryCount == 0 {
-				n.Publish(topic, brokerMsg)
-			} else if brokerMsg.Retry < int32(retryCount) {
+		retryCount, err := h(msg.Subject, brokerMsg)
+		if err != nil {
+			for i := 0; i < retryCount; i++ {
 				brokerMsg.Retry++
-				n.Publish(topic, brokerMsg)
+				_, err := h(topic, brokerMsg)
+				if err == nil {
+					break
+				}
 			}
 		}
 	})

@@ -7,4 +7,4 @@ type Broker interface {
 	Connect() error
 }
 
-type Handler func(topic string, msg *Message) (int, bool)
+type Handler func(topic string, msg *Message) (int, error)
