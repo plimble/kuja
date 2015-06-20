@@ -1,4 +1,4 @@
-Kuja [![godoc badge](http://godoc.org/github.com/plimble/ace?status.png)](http://godoc.org/github.com/plimble/ace)
+Kuja [![godoc badge](http://godoc.org/github.com/plimble/kuja?status.png)](http://godoc.org/github.com/plimble/kuja)
 ========
 
 Go microservice framework
@@ -31,19 +31,4 @@ Go microservice framework
 - Test
 
 ##Usage
-
-###Server
-
-```go
-type AddService struct{}
-
-func (s *AddService) Add(ctx *Ctx, req *AddReq, resp *AddResp) error {
-    resp.C = req.A + req.B
-    return nil
-}
-
-func main() {
-    server :=
-}
-```
-
+See in [example](https://github.com/plimble/kuja/tree/master/example)
