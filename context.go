@@ -33,12 +33,7 @@ func (ctx *Context) Publish(topic string, v interface{}, meta map[string]string)
 		return err
 	}
 
-	msg := &broker.Message{
-		Header: meta,
-		Body:   data,
-	}
-
-	return ctx.broker.Publish(topic, msg)
+	return ctx.broker.Publish(topic, broker.NewMessage(meta, data))
 }
 
 func (ctx *Context) Next() error {

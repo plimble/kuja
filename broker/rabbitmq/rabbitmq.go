@@ -29,6 +29,8 @@ func (r *rabbitmqBroker) Connect() error {
 		return err
 	}
 
+	r.ch.Qos(1, 0, false)
+
 	return nil
 }
 

@@ -3,7 +3,8 @@ syntax = "proto3";
 package broker;
 
 message Message {
-  map<string, string> Header = 1;
-  int32 Retry = 2;
-  bytes Body = 3;
+  string Id = 1;
+  map<string, string> Header = 2;
+  int32 Retry = 3;
+  bytes Body = 4;
 }

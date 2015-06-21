@@ -112,12 +112,7 @@ func (c *DefaultClient) Publish(topic string, v interface{}, meta map[string]str
 		return err
 	}
 
-	msg := &broker.Message{
-		Header: meta,
-		Body:   data,
-	}
-
-	return c.broker.Publish(topic, msg)
+	return c.broker.Publish(topic, broker.NewMessage(meta, data))
 }
 
 func (c *DefaultClient) Encoder(enc encoder.Encoder) {

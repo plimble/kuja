@@ -29,7 +29,6 @@ type Server struct {
 	mu              sync.Mutex // protects the serviceMap
 	serviceMap      map[string]*service
 	subscriberMap   map[string]*subscriber
-	subscribeSize   int
 	broker          broker.Broker
 	encoder         encoder.Encoder
 	snappy          bool
@@ -46,7 +45,6 @@ func NewServer() *Server {
 		serviceError:    defaulServiceErr,
 		subscriberError: defaulSubscriberErr,
 		subscriberMap:   make(map[string]*subscriber),
-		subscribeSize:   1,
 	}
 
 	server.pool.New = func() interface{} {
@@ -256,10 +254,10 @@ func (server *Server) startSubscribe() error {
 	}
 
 	for _, s := range server.subscriberMap {
-		for i := 0; i < server.subscribeSize; i++ {
+		for i := 0; i < s.size; i++ {
 			server.broker.Subscribe(s.topic, s.queue, server.id, s.handler)
 		}
-		log.Infof("Subscribe topic: %s queue: %s", s.topic, s.queue)
+		log.Infof("Subscribe topic: %s queue: %s size: %d", s.topic, s.queue, s.size)
 	}
 
 	return nil

@@ -33,6 +33,6 @@ func (s *Subscibers) Divide(ctx *kuja.SubscribeContext, req *AddReq) error {
 
 func (s *Subscibers) Longrunning(ctx *kuja.SubscribeContext, req *AddReq) error {
 	log.Println("Subscribe Longrunning triggered")
-	time.Sleep(time.Second * 4)
+	time.Sleep(time.Second * 10)
 	return errors.New("error in Longrunning")
 }

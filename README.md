@@ -25,6 +25,7 @@ Go microservice framework
 ##TODO
 - Circuit breaker
 - Trace
+- Stackerr
 - Doc
 - Test
 

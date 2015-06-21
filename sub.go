@@ -11,6 +11,7 @@ import (
 type SubscriberErrorFunc func(appId, topic, queue string, err error)
 
 type SubscribeContext struct {
+	Id       string
 	Topic    string
 	Metadata Metadata
 	status   string
@@ -42,17 +43,18 @@ type subscriber struct {
 	dataType reflect.Type
 	handler  broker.Handler
 	timeout  time.Duration
+	size     int
 }
 
-func defaulSubscriberErr(appID, topic, queue string, err error) {
-	log.Errorf("Subscriber Error app id: %s, topic: %s, queue: %s, err: %s", appID, topic, queue, err)
+func defaulSubscriberErr(msgId, topic, queue string, err error) {
+	log.Errorf("Subscriber Error msg id: %s, topic: %s, queue: %s, err: %s", msgId, topic, queue, err)
 }
 
 func (server *Server) SubscriberError(fn SubscriberErrorFunc) {
 	server.subscriberError = fn
 }
 
-func (server *Server) Subscribe(topic, queue string, timeout time.Duration, method interface{}) {
+func (server *Server) Subscribe(topic, queue string, timeout time.Duration, size int, method interface{}) {
 	if topic == "" || queue == "" {
 		panic(errors.New("topic, queue should not be empty"))
 	}
@@ -61,15 +63,12 @@ func (server *Server) Subscribe(topic, queue string, timeout time.Duration, meth
 		topic:   topic,
 		queue:   queue,
 		timeout: timeout,
+		size:    size,
 	}
 
 	if err := server.registerSub(method, s); err != nil {
 		panic(err)
 	}
-}
-
-func (server *Server) SubscribeSize(n int) {
-	server.subscribeSize = n
 }
 
 func (server *Server) registerSub(method interface{}, s *subscriber) error {
@@ -135,6 +134,7 @@ func (server *Server) subscribeTimeout(s *subscriber) broker.Handler {
 		ch := make(chan *subResponse)
 
 		ctx := &SubscribeContext{
+			Id:       msg.Id,
 			Topic:    s.topic,
 			Queue:    s.queue,
 			Metadata: msg.Header,
@@ -142,12 +142,12 @@ func (server *Server) subscribeTimeout(s *subscriber) broker.Handler {
 		}
 
 		if msg.Retry > 0 {
-			log.Infof("Subscriber Error app id: %s, topic: %s, queue: %s, retry: %d", server.id, ctx.Topic, ctx.Queue, msg.Retry)
+			log.Infof("Subscriber Error msg id: %s, topic: %s, queue: %s, retry: %d", ctx.Id, ctx.Topic, ctx.Queue, msg.Retry)
 		}
 
 		datav := reflect.New(s.dataType.Elem())
 		if err = server.encoder.Unmarshal(msg.Body, datav.Interface()); err != nil {
-			server.subscriberError(server.id, ctx.Topic, ctx.Queue, err)
+			server.subscriberError(ctx.Id, ctx.Topic, ctx.Queue, err)
 			return 0, err
 		}
 
@@ -155,23 +155,20 @@ func (server *Server) subscribeTimeout(s *subscriber) broker.Handler {
 			returnValues := s.rcvr.Call([]reflect.Value{reflect.ValueOf(ctx), datav})
 			errInter := returnValues[0].Interface()
 			if errInter != nil {
-				err := errInter.(error)
-				server.subscriberError(server.id, ctx.Topic, ctx.Queue, err)
-				ch <- &subResponse{ctx.retry, err}
-				return
+				ch <- &subResponse{ctx.retry, errInter.(error)}
+			} else {
+				ch <- &subResponse{0, nil}
 			}
-
-			ch <- &subResponse{0, nil}
 		}()
 
-		for {
-			select {
-			case resp := <-ch:
-				return resp.retry, resp.err
-			case <-time.After(s.timeout):
-				server.subscriberError(server.id, ctx.Topic, ctx.Queue, errors.New("time out"))
-				return 0, nil
+		select {
+		case resp := <-ch:
+			if resp.err != nil {
+				server.subscriberError(ctx.Id, ctx.Topic, ctx.Queue, resp.err)
 			}
+			return resp.retry, resp.err
+		case <-time.After(s.timeout):
+			server.subscriberError(ctx.Id, ctx.Topic, ctx.Queue, errors.New("time out"))
 		}
 
 		return 0, nil
@@ -182,6 +179,7 @@ func (server *Server) subscribe(s *subscriber) broker.Handler {
 	return func(topic string, msg *broker.Message) (int, error) {
 		var err error
 		ctx := &SubscribeContext{
+			Id:       msg.Id,
 			Topic:    s.topic,
 			Queue:    s.queue,
 			Metadata: msg.Header,
@@ -189,12 +187,12 @@ func (server *Server) subscribe(s *subscriber) broker.Handler {
 		}
 
 		if msg.Retry > 0 {
-			log.Infof("Subscriber Error app id: %s, topic: %s, queue: %s, retry: %d", server.id, ctx.Topic, ctx.Queue, msg.Retry)
+			log.Infof("Subscriber Error msg id: %s, topic: %s, queue: %s, retry: %d", ctx.Id, ctx.Topic, ctx.Queue, msg.Retry)
 		}
 
 		datav := reflect.New(s.dataType.Elem())
 		if err = server.encoder.Unmarshal(msg.Body, datav.Interface()); err != nil {
-			server.subscriberError(server.id, ctx.Topic, ctx.Queue, err)
+			server.subscriberError(ctx.Id, ctx.Topic, ctx.Queue, err)
 			return 0, err
 		}
 
@@ -202,7 +200,7 @@ func (server *Server) subscribe(s *subscriber) broker.Handler {
 		errInter := returnValues[0].Interface()
 		if errInter != nil {
 			err = errInter.(error)
-			server.subscriberError(server.id, ctx.Topic, ctx.Queue, err)
+			server.subscriberError(ctx.Id, ctx.Topic, ctx.Queue, err)
 			return ctx.retry, err
 		}
 

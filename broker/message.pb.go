@@ -24,9 +24,10 @@ import github_com_gogo_protobuf_sortkeys "github.com/gogo/protobuf/sortkeys"
 var _ = proto.Marshal
 
 type Message struct {
-	Header map[string]string `protobuf:"bytes,1,rep" json:"Header,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
-	Retry  int32             `protobuf:"varint,2,opt,proto3" json:"Retry,omitempty"`
-	Body   []byte            `protobuf:"bytes,3,opt,proto3" json:"Body,omitempty"`
+	Id     string            `protobuf:"bytes,1,opt,proto3" json:"Id,omitempty"`
+	Header map[string]string `protobuf:"bytes,2,rep" json:"Header,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	Retry  int32             `protobuf:"varint,3,opt,proto3" json:"Retry,omitempty"`
+	Body   []byte            `protobuf:"bytes,4,opt,proto3" json:"Body,omitempty"`
 }
 
 func (m *Message) Reset()         { *m = Message{} }
@@ -62,6 +63,28 @@ func (m *Message) Unmarshal(data []byte) error {
 		wireType := int(wire & 0x7)
 		switch fieldNum {
 		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Id", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			postIndex := iNdEx + int(stringLen)
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Id = string(data[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Header", wireType)
 			}
@@ -146,7 +169,7 @@ func (m *Message) Unmarshal(data []byte) error {
 			}
 			m.Header[mapkey] = mapvalue
 			iNdEx = postIndex
-		case 2:
+		case 3:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Retry", wireType)
 			}
@@ -161,7 +184,7 @@ func (m *Message) Unmarshal(data []byte) error {
 					break
 				}
 			}
-		case 3:
+		case 4:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Body", wireType)
 			}
@@ -293,6 +316,10 @@ func skipMessage(data []byte) (n int, err error) {
 func (m *Message) Size() (n int) {
 	var l int
 	_ = l
+	l = len(m.Id)
+	if l > 0 {
+		n += 1 + l + sovMessage(uint64(l))
+	}
 	if len(m.Header) > 0 {
 		for k, v := range m.Header {
 			_ = k
@@ -341,6 +368,12 @@ func (m *Message) MarshalTo(data []byte) (n int, err error) {
 	_ = i
 	var l int
 	_ = l
+	if len(m.Id) > 0 {
+		data[i] = 0xa
+		i++
+		i = encodeVarintMessage(data, i, uint64(len(m.Id)))
+		i += copy(data[i:], m.Id)
+	}
 	if len(m.Header) > 0 {
 		keysForHeader := make([]string, 0, len(m.Header))
 		for k, _ := range m.Header {
@@ -348,7 +381,7 @@ func (m *Message) MarshalTo(data []byte) (n int, err error) {
 		}
 		github_com_gogo_protobuf_sortkeys.Strings(keysForHeader)
 		for _, k := range keysForHeader {
-			data[i] = 0xa
+			data[i] = 0x12
 			i++
 			v := m.Header[k]
 			mapSize := 1 + len(k) + sovMessage(uint64(len(k))) + 1 + len(v) + sovMessage(uint64(len(v)))
@@ -364,13 +397,13 @@ func (m *Message) MarshalTo(data []byte) (n int, err error) {
 		}
 	}
 	if m.Retry != 0 {
-		data[i] = 0x10
+		data[i] = 0x18
 		i++
 		i = encodeVarintMessage(data, i, uint64(m.Retry))
 	}
 	if m.Body != nil {
 		if len(m.Body) > 0 {
-			data[i] = 0x1a
+			data[i] = 0x22
 			i++
 			i = encodeVarintMessage(data, i, uint64(len(m.Body)))
 			i += copy(data[i:], m.Body)

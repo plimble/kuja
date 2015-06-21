@@ -17,14 +17,13 @@ func main() {
 	// Each message will be delivered to only one subscriber per queue group,
 	// using queuing semantics. You can have as many queue groups as you wish.
 	// Normal subscribers will continue to work as expected.
-	server.Subscribe("AddService.added", "add", 0, sub.Add)
-	server.Subscribe("AddService.added", "sub", 0, sub.Sub)
-	server.Subscribe("AddService.added", "multiply", 0, sub.Multiply)
-	server.Subscribe("AddService.added", "devide", 0, sub.Divide)
-	server.Subscribe("AddService.added", "long", time.Second*2, sub.Longrunning)
-
-	// 10 workers for each subscription
-	server.SubscribeSize(10)
+	server.Subscribe("AddService.added", "add", 0, 1, sub.Add)
+	server.Subscribe("AddService.added", "sub", 0, 1, sub.Sub)
+	server.Subscribe("AddService.added", "multiply", 0, 1, sub.Multiply)
+	// timeout 2 seconds
+	server.Subscribe("AddService.added", "long", time.Second*2, 1, sub.Longrunning)
+	// 10 workers for devide
+	server.Subscribe("AddService.added", "devide", 0, 10, sub.Divide)
 
 	server.Snappy(true)
 
