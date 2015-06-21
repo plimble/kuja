@@ -24,4 +24,5 @@ type Registry interface {
 	GetService(name string) (*Service, error)
 	ListServices() ([]*Service, error)
 	Watch() (Watcher, error)
+	Close()
 }

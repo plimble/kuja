@@ -17,15 +17,15 @@ Go microservice framework
     - Retries/Timeout Queue
     - Graceful Shutdown
     - Custom Error
-    - Register Etcd/Consul
+    - Register Etcd/Consul and Hartbeat
     - Snappy
     - Encoder
     - Middleware
+    - Health Endpoint (/health)
 
 ##TODO
 - Circuit breaker
 - Trace
-- Stackerr
 - Doc
 - Test
 

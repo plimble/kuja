@@ -144,3 +144,7 @@ func NewRegistry(addrs []string) registry.Registry {
 
 	return c
 }
+
+func (e *ConsulRegistry) Close() {
+
+}

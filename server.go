@@ -101,14 +101,17 @@ func (server *Server) Run(addr string, timeout time.Duration) {
 
 	if err := server.startRegistry("http://", addr); err != nil {
 		log.Error(err)
+		return
 	}
 
 	if err := server.startBroker(); err != nil {
 		log.Error(err)
+		return
 	}
 
 	if err := server.startSubscribe(); err != nil {
 		log.Error(err)
+		return
 	}
 
 	log.Infof("Start server id %s on %s", server.id, addr)
@@ -154,14 +157,17 @@ func (server *Server) RunTLS(addr string, timeout time.Duration, certFile, keyFi
 
 	if err := server.startRegistry("https://", addr); err != nil {
 		log.Error(err)
+		return
 	}
 
 	if err := server.startBroker(); err != nil {
 		log.Error(err)
+		return
 	}
 
 	if err := server.startSubscribe(); err != nil {
 		log.Error(err)
+		return
 	}
 
 	log.Infof("Start server id %s on %s", server.id, addr)
@@ -222,6 +228,7 @@ func (server *Server) stopRegistry() {
 			}
 			log.Infof("Deregisterd %s %s", service.name, service.id)
 		}
+		server.registry.Close()
 	}
 }
 
@@ -282,6 +289,13 @@ func getServiceMethod(s string) (string, string) {
 }
 
 func (server *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	if req.Method == "GET" && req.URL.Path == "/health" {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		io.WriteString(w, "ok\n")
+		return
+	}
+
 	if req.Method != "POST" {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.WriteHeader(http.StatusMethodNotAllowed)

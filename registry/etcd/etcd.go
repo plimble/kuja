@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 )
 
 const (
@@ -47,7 +48,17 @@ func (e *EtcdRegistry) Register(node *registry.Node) error {
 
 	e.client.CreateDir(e.servicePath(node.Name), 0)
 
-	_, err := e.client.Create(e.nodePath(node.Name, node.Id), encode(node), 0)
+	data := encode(node)
+	_, err := e.client.Create(e.nodePath(node.Name, node.Id), data, 120)
+
+	go func() {
+		for {
+			select {
+			case <-time.After(time.Minute):
+				e.client.Set(e.nodePath(node.Name, node.Id), data, 120)
+			}
+		}
+	}()
 
 	return err
 }
@@ -170,4 +181,8 @@ func NewRegistry(prefix string, addrs []string) registry.Registry {
 	}
 
 	return e
+}
+
+func (e *EtcdRegistry) Close() {
+	e.client.Close()
 }
