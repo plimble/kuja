@@ -41,6 +41,8 @@ type Client interface {
 	AsyncRequests(as []AsyncRequest) []AsyncResponse
 	DefaultHeader(hdr map[string]string)
 	Request(service, method string, reqv interface{}, respv interface{}, header map[string]string) (int, error)
+	DefaultTimeout(d time.Duration)
+	DefaultMaxTries(n uint)
 }
 
 type HeaderFunc func(header http.Header)
