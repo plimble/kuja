@@ -21,13 +21,26 @@ Go webservice framework
     - Encoder
     - Middleware
     - Health Endpoint (/health)
-    - Ratelimit
+    - Built-in Client
     - Metric
 
 ##TODO
+- Config func
+- Circuit breaker Publish
+- Circuit breaker option and custom error
+- Circuit breaker metric prometheus
+- Close method for client
+- Built-in Client
 - Metric
+- prometheus metric
 - Doc
 - Test
 
 ##Usage
 See in [example](https://github.com/plimble/kuja/tree/master/example)
+
+##Note
+This framwork is designed for internal services, no rate limit, connection limit and securities.
+Only have tls for protocal security. Please add api gateway or create securities by yourself.
+
+
