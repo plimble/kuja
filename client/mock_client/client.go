@@ -17,8 +17,8 @@ func NewMockClient() *MockClient {
 func (m *MockClient) Broker(b broker.Broker) {
 	m.Called(b)
 }
-func (m *MockClient) Publish(service string, topic string, v interface{}, meta map[string]string) error {
-	ret := m.Called(service, topic, v, meta)
+func (m *MockClient) Publish(topic string, v interface{}, meta map[string]string) error {
+	ret := m.Called(topic, v, meta)
 
 	r0 := ret.Error(0)
 
