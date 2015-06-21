@@ -6,8 +6,6 @@ import "github.com/stretchr/testify/mock"
 import "github.com/plimble/kuja/broker"
 import "github.com/plimble/kuja/encoder"
 
-import "time"
-
 type MockClient struct {
 	mock.Mock
 }
@@ -50,9 +48,6 @@ func (m *MockClient) Request(service string, method string, reqv interface{}, re
 
 	return r0, r1
 }
-func (m *MockClient) DefaultTimeout(d time.Duration) {
-	m.Called(d)
-}
-func (m *MockClient) DefaultMaxTries(n uint) {
-	m.Called(n)
+func (m *MockClient) CircuitBrakerConfig(service string, config *client.CircuitBrakerConfig) {
+	m.Called(service, config)
 }

@@ -7,7 +7,6 @@ Go webservice framework
 - Client
     - Reuqest/Async Requests
     - Publish
-    - Request Reties/Timeout
     - Service Discovery/Watch
     - Encoder
     - Circuit breaker
@@ -22,10 +21,11 @@ Go webservice framework
     - Encoder
     - Middleware
     - Health Endpoint (/health)
+    - Ratelimit
+    - Metric
 
 ##TODO
-- Circuit breaker
-- Trace
+- Metric
 - Doc
 - Test
 

@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"errors"
-	"github.com/facebookgo/httpcontrol"
+	"github.com/afex/hystrix-go/hystrix"
 	"github.com/golang/snappy/snappy"
 	"github.com/plimble/kuja/broker"
 	"github.com/plimble/kuja/encoder"
@@ -30,6 +30,14 @@ type AsyncResponse struct {
 	Error  error
 }
 
+type CircuitBrakerConfig struct {
+	Timeout                int
+	MaxConcurrentRequests  int
+	RequestVolumeThreshold int
+	SleepWindow            int
+	ErrorPercentThreshold  int
+}
+
 type Method interface {
 	GetAddress(service, method string) (string, error)
 }
@@ -41,8 +49,7 @@ type Client interface {
 	AsyncRequests(as []AsyncRequest) []AsyncResponse
 	DefaultHeader(hdr map[string]string)
 	Request(service, method string, reqv interface{}, respv interface{}, header map[string]string) (int, error)
-	DefaultTimeout(d time.Duration)
-	DefaultMaxTries(n uint)
+	CircuitBrakerConfig(service string, config *CircuitBrakerConfig)
 }
 
 type HeaderFunc func(header http.Header)
@@ -55,7 +62,6 @@ type DefaultClient struct {
 	retry         int
 	timeout       time.Duration
 	client        *http.Client
-	httpControl   *httpcontrol.Transport
 }
 
 func New(url string, tlsConfig *tls.Config) Client {
@@ -63,19 +69,15 @@ func New(url string, tlsConfig *tls.Config) Client {
 		url = url[:len(url)-1]
 	}
 
-	d := &DefaultClient{
+	return &DefaultClient{
 		method:  &Direct{url},
 		encoder: json.NewEncoder(),
-		client:  &http.Client{},
-		httpControl: &httpcontrol.Transport{
-			RequestTimeout:  0,
-			MaxTries:        0,
-			TLSClientConfig: tlsConfig,
+		client: &http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: tlsConfig,
+			},
 		},
 	}
-
-	d.client.Transport = d.httpControl
-	return d
 }
 
 func NewWithRegistry(r registry.Registry, watch bool, tlsConfig *tls.Config) Client {
@@ -83,29 +85,42 @@ func NewWithRegistry(r registry.Registry, watch bool, tlsConfig *tls.Config) Cli
 		r.Watch()
 	}
 
-	d := &DefaultClient{
+	return &DefaultClient{
 		method: &Discovery{
 			registry: r,
 		},
 		encoder: json.NewEncoder(),
-		client:  &http.Client{},
-		httpControl: &httpcontrol.Transport{
-			RequestTimeout:  0,
-			MaxTries:        0,
-			TLSClientConfig: tlsConfig,
+		client: &http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: tlsConfig,
+			},
 		},
 	}
-
-	d.client.Transport = d.httpControl
-	return d
 }
 
-func (c *DefaultClient) DefaultTimeout(d time.Duration) {
-	c.httpControl.RequestTimeout = d
-}
-
-func (c *DefaultClient) DefaultMaxTries(n uint) {
-	c.httpControl.MaxTries = n
+func (c *DefaultClient) CircuitBrakerConfig(service string, config *CircuitBrakerConfig) {
+	if config.Timeout == 0 {
+		config.Timeout = 1000
+	}
+	if config.MaxConcurrentRequests == 0 {
+		config.MaxConcurrentRequests = 10
+	}
+	if config.RequestVolumeThreshold == 0 {
+		config.RequestVolumeThreshold = 5
+	}
+	if config.SleepWindow == 0 {
+		config.SleepWindow = 1000
+	}
+	if config.ErrorPercentThreshold == 0 {
+		config.ErrorPercentThreshold = 50
+	}
+	hystrix.ConfigureCommand(service, hystrix.CommandConfig{
+		Timeout:                config.Timeout,
+		MaxConcurrentRequests:  config.MaxConcurrentRequests,
+		RequestVolumeThreshold: config.RequestVolumeThreshold,
+		SleepWindow:            config.SleepWindow,
+		ErrorPercentThreshold:  config.ErrorPercentThreshold,
+	})
 }
 
 func (c *DefaultClient) Broker(b broker.Broker) {
@@ -181,31 +196,52 @@ func (c *DefaultClient) Request(service, method string, reqv interface{}, respv 
 		req.Header.Set(name, val)
 	}
 
-	resp, err := c.client.Do(req)
-	if err != nil {
-		return 0, err
-	}
-	buf.Reset()
-	buf.ReadFrom(resp.Body)
-	resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		return resp.StatusCode, errors.New(string(buf.Bytes()))
-	}
-
-	respData := buf.Bytes()
-	if resp.Header.Get("Snappy") == "true" {
-		respData, err = snappy.Decode(nil, buf.Bytes())
+	output := make(chan *http.Response, 1)
+	errChan := hystrix.Go(service, func() error {
+		resp, err := c.client.Do(req)
 		if err != nil {
+			return err
+		}
+		output <- resp
+		return nil
+	}, nil)
 
+	select {
+	case resp := <-output:
+		// success
+		buf.Reset()
+		buf.ReadFrom(resp.Body)
+		resp.Body.Close()
+
+		if resp.StatusCode != 200 {
+			return resp.StatusCode, errors.New(string(buf.Bytes()))
+		}
+
+		respData := buf.Bytes()
+		if resp.Header.Get("Snappy") == "true" {
+			respData, err = snappy.Decode(nil, buf.Bytes())
+			if err != nil {
+
+				return 0, err
+			}
+		}
+
+		err = c.encoder.Unmarshal(respData, respv)
+		if err != nil {
 			return 0, err
 		}
-	}
 
-	err = c.encoder.Unmarshal(respData, respv)
-	if err != nil {
+		return resp.StatusCode, err
+	case err := <-errChan:
 		return 0, err
 	}
 
-	return resp.StatusCode, err
+	// resp, err := c.client.Do(req)
+	// if err != nil {
+	// 	return 0, err
+	// }
+	// buf.Reset()
+	// buf.ReadFrom(resp.Body)
+	// resp.Body.Close()
+
 }
