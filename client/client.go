@@ -53,6 +53,7 @@ type DefaultClient struct {
 	retry         int
 	timeout       time.Duration
 	client        *http.Client
+	httpControl   *httpcontrol.Transport
 }
 
 func New(url string, tlsConfig *tls.Config) Client {
@@ -63,15 +64,15 @@ func New(url string, tlsConfig *tls.Config) Client {
 	d := &DefaultClient{
 		method:  &Direct{url},
 		encoder: json.NewEncoder(),
-		client: &http.Client{
-			Transport: &httpcontrol.Transport{
-				RequestTimeout:  0,
-				MaxTries:        0,
-				TLSClientConfig: tlsConfig,
-			},
+		client:  &http.Client{},
+		httpControl: &httpcontrol.Transport{
+			RequestTimeout:  0,
+			MaxTries:        0,
+			TLSClientConfig: tlsConfig,
 		},
 	}
 
+	d.client.Transport = d.httpControl
 	return d
 }
 
@@ -80,19 +81,29 @@ func NewWithRegistry(r registry.Registry, watch bool, tlsConfig *tls.Config) Cli
 		r.Watch()
 	}
 
-	return &DefaultClient{
+	d := &DefaultClient{
 		method: &Discovery{
 			registry: r,
 		},
 		encoder: json.NewEncoder(),
-		client: &http.Client{
-			Transport: &httpcontrol.Transport{
-				RequestTimeout:  0,
-				MaxTries:        0,
-				TLSClientConfig: tlsConfig,
-			},
+		client:  &http.Client{},
+		httpControl: &httpcontrol.Transport{
+			RequestTimeout:  0,
+			MaxTries:        0,
+			TLSClientConfig: tlsConfig,
 		},
 	}
+
+	d.client.Transport = d.httpControl
+	return d
+}
+
+func (c *DefaultClient) DefaultTimeout(d time.Duration) {
+	c.httpControl.RequestTimeout = d
+}
+
+func (c *DefaultClient) DefaultMaxTries(n uint) {
+	c.httpControl.MaxTries = n
 }
 
 func (c *DefaultClient) Broker(b broker.Broker) {
