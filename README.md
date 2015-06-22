@@ -26,15 +26,11 @@ Go webservice framework
 
 ##TODO
 - Config func
-- Circuit breaker Publish
-- Circuit breaker option and custom error
 - Circuit breaker metric prometheus
-- Close method for client
 - Built-in Client
 - Metric
 - prometheus metric
 - Doc
-- [Phosphor Distributed Tracing system](https://github.com/mattheath/phosphor)
 - Test
 
 ##Usage

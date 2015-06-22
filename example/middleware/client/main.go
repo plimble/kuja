@@ -7,7 +7,11 @@ import (
 )
 
 func main() {
-	c := client.New("http://127.0.0.1:3000", nil)
+	c, err := client.New("http://127.0.0.1:3000")
+	if err != nil {
+		panic(err)
+	}
+	defer c.Close()
 
 	resp := &middleware.AddResp{}
 	status, err := c.Request("AddService", "Add", middleware.AddReq{A: 5, B: 3}, resp, nil)

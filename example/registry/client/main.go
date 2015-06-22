@@ -9,7 +9,11 @@ import (
 
 func main() {
 	// enable watch
-	c := client.NewWithRegistry(etcd.NewRegistry("/kuja_example/services", []string{"http://127.0.0.1:4001"}), true, nil)
+	c, err := client.NewWithRegistry(etcd.NewRegistry("/kuja_example/services", []string{"http://127.0.0.1.com:4001"}), true)
+	if err != nil {
+		panic(err)
+	}
+	defer c.Close()
 
 	resp := &registry.AddResp{}
 	status, err := c.Request("AddService", "Add", registry.AddReq{A: 5, B: 3}, resp, nil)

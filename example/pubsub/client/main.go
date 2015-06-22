@@ -8,8 +8,11 @@ import (
 )
 
 func main() {
-	c := client.New("http://127.0.0.1:3000", nil)
-	c.Broker(rabbitmq.NewBroker("amqp://guest:guest@plimble.com:5672/"))
+	c, err := client.New("http://127.0.0.1:3000", client.Broker(rabbitmq.NewBroker("amqp://guest:guest@plimble.com:5672/")))
+	if err != nil {
+		panic(err)
+	}
+	defer c.Close()
 
 	resp := &pubsub.AddResp{}
 	status, err := c.Request("AddService", "Add", pubsub.AddReq{A: 5, B: 3}, resp, nil)

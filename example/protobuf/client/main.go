@@ -8,8 +8,11 @@ import (
 )
 
 func main() {
-	c := client.New("http://127.0.0.1:3000", nil)
-	c.Encoder(proto.NewEncoder())
+	c, err := client.New("http://127.0.0.1:3000", client.Encoder(proto.NewEncoder()))
+	if err != nil {
+		panic(err)
+	}
+	defer c.Close()
 
 	// Request
 	resp := &protobuf.AddResp{}

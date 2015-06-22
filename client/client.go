@@ -2,17 +2,13 @@ package client
 
 import (
 	"bytes"
-	"crypto/tls"
 	"errors"
 	"github.com/afex/hystrix-go/hystrix"
 	"github.com/golang/snappy/snappy"
 	"github.com/plimble/kuja/broker"
-	"github.com/plimble/kuja/encoder"
-	"github.com/plimble/kuja/encoder/json"
 	"github.com/plimble/kuja/registry"
 	"net/http"
 	"strings"
-	"time"
 )
 
 //go:generate mockery -name Client
@@ -43,113 +39,94 @@ type Method interface {
 }
 
 type Client interface {
-	Broker(b broker.Broker)
 	Publish(topic string, v interface{}, meta map[string]string) error
-	Encoder(enc encoder.Encoder)
 	AsyncRequests(as []AsyncRequest) []AsyncResponse
-	DefaultHeader(hdr map[string]string)
 	Request(service, method string, reqv interface{}, respv interface{}, header map[string]string) (int, error)
-	CircuitBrakerConfig(service string, config *CircuitBrakerConfig)
+	Close()
 }
 
 type HeaderFunc func(header http.Header)
 
 type DefaultClient struct {
+	*option
 	method        Method
-	encoder       encoder.Encoder
-	broker        broker.Broker
-	defaultHeader map[string]string
-	retry         int
-	timeout       time.Duration
 	client        *http.Client
+	hystrixConfig map[string]struct{}
 }
 
-func New(url string, tlsConfig *tls.Config) Client {
+func New(url string, opts ...Option) (Client, error) {
 	if strings.HasPrefix(url, "/") {
 		url = url[:len(url)-1]
 	}
 
+	opt := newOption()
+	for i := 0; i < len(opts); i++ {
+		opts[i](opt)
+	}
+
+	if opt.Broker != nil {
+		if err := opt.Broker.Connect(); err != nil {
+			return nil, err
+		}
+	}
+
 	return &DefaultClient{
-		method:  &Direct{url},
-		encoder: json.NewEncoder(),
+		option:        opt,
+		method:        &Direct{url},
+		hystrixConfig: make(map[string]struct{}),
 		client: &http.Client{
 			Transport: &http.Transport{
-				TLSClientConfig: tlsConfig,
+				TLSClientConfig: opt.TLSConfig,
 			},
 		},
-	}
+	}, nil
 }
 
-func NewWithRegistry(r registry.Registry, watch bool, tlsConfig *tls.Config) Client {
+func NewWithRegistry(r registry.Registry, watch bool, opts ...Option) (Client, error) {
 	if watch {
 		r.Watch()
 	}
 
+	opt := newOption()
+	for i := 0; i < len(opts); i++ {
+		opts[i](opt)
+	}
+
+	if opt.Broker != nil {
+		if err := opt.Broker.Connect(); err != nil {
+			return nil, err
+		}
+	}
+
 	return &DefaultClient{
-		method: &Discovery{
-			registry: r,
-		},
-		encoder: json.NewEncoder(),
+		option:        opt,
+		method:        &Discovery{r},
+		hystrixConfig: make(map[string]struct{}),
 		client: &http.Client{
 			Transport: &http.Transport{
-				TLSClientConfig: tlsConfig,
+				TLSClientConfig: opt.TLSConfig,
 			},
 		},
-	}
+	}, nil
 }
 
-func (c *DefaultClient) CircuitBrakerConfig(service string, config *CircuitBrakerConfig) {
-	if config.Timeout == 0 {
-		config.Timeout = 1000
+func (c *DefaultClient) Close() {
+	if c.Broker != nil {
+		c.Broker.Close()
 	}
-	if config.MaxConcurrentRequests == 0 {
-		config.MaxConcurrentRequests = 10
-	}
-	if config.RequestVolumeThreshold == 0 {
-		config.RequestVolumeThreshold = 5
-	}
-	if config.SleepWindow == 0 {
-		config.SleepWindow = 1000
-	}
-	if config.ErrorPercentThreshold == 0 {
-		config.ErrorPercentThreshold = 50
-	}
-	hystrix.ConfigureCommand(service, hystrix.CommandConfig{
-		Timeout:                config.Timeout,
-		MaxConcurrentRequests:  config.MaxConcurrentRequests,
-		RequestVolumeThreshold: config.RequestVolumeThreshold,
-		SleepWindow:            config.SleepWindow,
-		ErrorPercentThreshold:  config.ErrorPercentThreshold,
-	})
-}
-
-func (c *DefaultClient) Broker(b broker.Broker) {
-	c.broker = b
-	if err := c.broker.Connect(); err != nil {
-		panic(err)
-	}
-}
-
-func (c *DefaultClient) DefaultHeader(hdr map[string]string) {
-	c.defaultHeader = hdr
 }
 
 func (c *DefaultClient) Publish(topic string, v interface{}, meta map[string]string) error {
-	data, err := c.encoder.Marshal(v)
+	data, err := c.Encoder.Marshal(v)
 	if err != nil {
 		return err
 	}
 
-	return c.broker.Publish(topic, broker.NewMessage(meta, data))
-}
-
-func (c *DefaultClient) Encoder(enc encoder.Encoder) {
-	c.encoder = enc
+	return c.Broker.Publish(topic, broker.NewMessage(meta, data))
 }
 
 func (c *DefaultClient) AsyncRequests(as []AsyncRequest) []AsyncResponse {
 	done := make(chan AsyncResponse, len(as))
-	// arespChan := make(chan *AsyncResponse, len(as))
 	aresps := make([]AsyncResponse, 0, len(as))
 
 	for i := 0; i < len(as); i++ {
@@ -177,7 +154,7 @@ func (c *DefaultClient) Request(service, method string, reqv interface{}, respv 
 		return 0, err
 	}
 
-	dataReq, err := c.encoder.Marshal(reqv)
+	dataReq, err := c.Encoder.Marshal(reqv)
 	if err != nil {
 		return 0, err
 	}
@@ -188,12 +165,23 @@ func (c *DefaultClient) Request(service, method string, reqv interface{}, respv 
 		return 0, err
 	}
 
-	for name, val := range c.defaultHeader {
+	for name, val := range c.Header {
 		req.Header.Set(name, val)
 	}
 
 	for name, val := range header {
 		req.Header.Set(name, val)
+	}
+
+	if _, ok := c.hystrixConfig[service]; !ok {
+		hystrix.ConfigureCommand(service, hystrix.CommandConfig{
+			Timeout:                c.Timeout,
+			MaxConcurrentRequests:  c.MaxConcurrentRequests,
+			RequestVolumeThreshold: c.RequestVolumeThreshold,
+			SleepWindow:            c.SleepWindow,
+			ErrorPercentThreshold:  c.ErrorPercentThreshold,
+		})
+		c.hystrixConfig[service] = struct{}{}
 	}
 
 	output := make(chan *http.Response, 1)
@@ -226,7 +214,7 @@ func (c *DefaultClient) Request(service, method string, reqv interface{}, respv 
 			}
 		}
 
-		err = c.encoder.Unmarshal(respData, respv)
+		err = c.Encoder.Unmarshal(respData, respv)
 		if err != nil {
 			return 0, err
 		}
@@ -235,13 +223,4 @@ func (c *DefaultClient) Request(service, method string, reqv interface{}, respv 
 	case err := <-errChan:
 		return 0, err
 	}
-
-	// resp, err := c.client.Do(req)
-	// if err != nil {
-	// 	return 0, err
-	// }
-	// buf.Reset()
-	// buf.ReadFrom(resp.Body)
-	// resp.Body.Close()
-
 }

@@ -8,16 +8,18 @@ import (
 )
 
 func main() {
-	c := client.New("http://127.0.0.1:3000", nil)
+	c, err := client.New("http://127.0.0.1:3000")
+	if err != nil {
+		panic(err)
+	}
+	defer c.Close()
 
-	// for i := 0; i < 100; i++ {
-	// 	go func() {
-	// 		time.Sleep(time.Millisecond * 500)
-	// 		resp := &reqresp.AddResp{}
-	// 		status, err := c.Request("AddService", "Add", reqresp.AddReq{A: 5, B: 3}, resp, nil)
-	// 		fmt.Println(resp, status, err)
-	// 	}()
-	// }
+	for i := 0; i < 1000; i++ {
+		time.Sleep(time.Millisecond * 500)
+		resp := &reqresp.AddResp{}
+		status, err := c.Request("AddService", "Add", reqresp.AddReq{A: 5, B: 3}, resp, nil)
+		fmt.Println(resp, status, err)
+	}
 	resp := &reqresp.AddResp{}
 	status, err := c.Request("AddService", "Add", reqresp.AddReq{A: 5, B: 3}, resp, nil)
 

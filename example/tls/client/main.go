@@ -13,7 +13,11 @@ func main() {
 	tlsConfig.Certificates[0], _ = tls.LoadX509KeyPair("../cert.pem", "../key.pem")
 	tlsConfig.InsecureSkipVerify = true
 
-	c := client.New("https://127.0.0.1:3000", tlsConfig)
+	c, err := client.New("https://127.0.0.1:3000", client.TLSConfig(tlsConfig))
+	if err != nil {
+		panic(err)
+	}
+	defer c.Close()
 
 	resp := &tlsexample.AddResp{}
 	status, err := c.Request("AddService", "Add", tlsexample.AddReq{A: 5, B: 3}, resp, nil)
