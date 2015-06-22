@@ -3,13 +3,20 @@ package main
 import (
 	"github.com/plimble/kuja"
 	"github.com/plimble/kuja/broker/rabbitmq"
+	"github.com/plimble/kuja/client"
 	"github.com/plimble/kuja/example/pubsub"
 	"time"
 )
 
 func main() {
+	c, err := client.New("http://127.0.0.1:3000", client.Broker(rabbitmq.NewBroker("amqp://guest:guest@plimble.com:5672/")))
+	if err != nil {
+		panic(err)
+	}
+	defer c.Close()
+
 	server := kuja.NewServer()
-	server.Service(&pubsub.AddService{})
+	server.Service(&pubsub.AddService{c})
 	server.Broker(rabbitmq.NewBroker("amqp://guest:guest@plimble.com:5672/"))
 	sub := &pubsub.Subscibers{}
 

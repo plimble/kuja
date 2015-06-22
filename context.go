@@ -1,7 +1,6 @@
 package kuja
 
 import (
-	"github.com/plimble/kuja/broker"
 	"github.com/plimble/kuja/encoder"
 	"net/http"
 	"reflect"
@@ -24,16 +23,6 @@ type Context struct {
 	ServiceName  string
 	MethodName   string
 	isResp       bool
-	broker       broker.Broker
-}
-
-func (ctx *Context) Publish(topic string, v interface{}, meta map[string]string) error {
-	data, err := ctx.encoder.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	return ctx.broker.Publish(topic, broker.NewMessage(meta, data))
 }
 
 func (ctx *Context) Next() error {

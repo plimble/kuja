@@ -2,6 +2,7 @@ package client
 
 import (
 	"crypto/tls"
+	"github.com/afex/hystrix-go/hystrix"
 	"github.com/plimble/kuja/broker"
 	"github.com/plimble/kuja/encoder"
 	"github.com/plimble/kuja/encoder/json"
@@ -94,19 +95,19 @@ func ErrorPercentThreshold(n int) Option {
 
 func ErrMaxConcurrency(s string) Option {
 	return func(o *option) {
-		o.ErrMaxConcurrency = s
+		hystrix.ErrMaxConcurrency = hystrix.CircuitError{Message: s}
 	}
 }
 
 func ErrCircuitOpen(s string) Option {
 	return func(o *option) {
-		o.ErrCircuitOpen = s
+		hystrix.ErrCircuitOpen = hystrix.CircuitError{Message: s}
 	}
 }
 
 func ErrTimeout(s string) Option {
 	return func(o *option) {
-		o.ErrTimeout = s
+		hystrix.ErrTimeout = hystrix.CircuitError{Message: s}
 	}
 }
 
