@@ -21,13 +21,10 @@ Go webservice framework
     - Encoder
     - Middleware
     - Health Endpoint (/health)
-    - Built-in Client
     - Metric
 
 ##TODO
-- Config func
 - Circuit breaker metric prometheus
-- Built-in Client
 - Metric
 - prometheus metric
 - Doc
