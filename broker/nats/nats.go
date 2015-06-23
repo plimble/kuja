@@ -35,19 +35,21 @@ func (n *natsBroker) Publish(topic string, msg *broker.Message) error {
 	return n.conn.Publish(topic, data)
 }
 
-func (n *natsBroker) Subscribe(topic, queue, appId string, h broker.Handler) {
-	n.conn.QueueSubscribe(topic, queue, func(msg *nats.Msg) {
-		brokerMsg := &broker.Message{}
-		brokerMsg.Unmarshal(msg.Data)
-		retryCount, err := h(msg.Subject, brokerMsg)
-		if err != nil {
-			for i := 0; i < retryCount; i++ {
-				brokerMsg.Retry++
-				_, err := h(topic, brokerMsg)
-				if err == nil {
-					break
+func (n *natsBroker) Subscribe(topic, queue, appId string, size int, h broker.Handler) {
+	for i := 0; i < size; i++ {
+		n.conn.QueueSubscribe(topic, queue, func(msg *nats.Msg) {
+			brokerMsg := &broker.Message{}
+			brokerMsg.Unmarshal(msg.Data)
+			retryCount, err := h(msg.Subject, brokerMsg)
+			if err != nil {
+				for i := 0; i < retryCount; i++ {
+					brokerMsg.Retry++
+					_, err := h(topic, brokerMsg)
+					if err == nil {
+						break
+					}
 				}
 			}
-		}
-	})
+		})
+	}
 }

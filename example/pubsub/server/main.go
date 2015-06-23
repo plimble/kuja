@@ -27,10 +27,10 @@ func main() {
 	server.Subscribe("AddService.added", "add", 0, 1, sub.Add)
 	server.Subscribe("AddService.added", "sub", 0, 1, sub.Sub)
 	server.Subscribe("AddService.added", "multiply", 0, 1, sub.Multiply)
-	// timeout 2 seconds
-	server.Subscribe("AddService.added", "long", time.Second*2, 1, sub.Longrunning)
 	// 10 workers for devide
 	server.Subscribe("AddService.added", "devide", 0, 10, sub.Divide)
+	// timeout 2 seconds, 10 workers
+	server.Subscribe("AddService.added", "long", time.Second*2, 10, sub.Longrunning)
 
 	server.Snappy(true)
 

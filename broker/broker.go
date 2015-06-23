@@ -6,7 +6,7 @@ import (
 
 type Broker interface {
 	Publish(topic string, msg *Message) error
-	Subscribe(topic, queue, appId string, h Handler)
+	Subscribe(topic, queue, appId string, size int, h Handler)
 	Close()
 	Connect() error
 }

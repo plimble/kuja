@@ -6,9 +6,10 @@ import (
 )
 
 type rabbitmqBroker struct {
-	url  string
-	conn *amqp.Connection
-	ch   *amqp.Channel
+	url        string
+	conn       *amqp.Connection
+	ch         *amqp.Channel
+	chConsumes []*amqp.Channel
 }
 
 func NewBroker(url string) *rabbitmqBroker {
@@ -36,6 +37,9 @@ func (r *rabbitmqBroker) Connect() error {
 
 func (r *rabbitmqBroker) Close() {
 	r.ch.Close()
+	for i := 0; i < len(r.chConsumes); i++ {
+		r.chConsumes[i].Close()
+	}
 	r.conn.Close()
 }
 
@@ -67,8 +71,11 @@ func (r *rabbitmqBroker) Publish(topic string, msg *broker.Message) error {
 	)
 }
 
-func (r *rabbitmqBroker) Subscribe(topic, queue, appId string, h broker.Handler) {
-	r.ch.ExchangeDeclare(
+func (r *rabbitmqBroker) Subscribe(topic, queue, appId string, size int, h broker.Handler) {
+	ch, _ := r.conn.Channel()
+	ch.Qos(size, 0, false)
+
+	ch.ExchangeDeclare(
 		topic,    // name
 		"fanout", // type
 		true,     // durable
@@ -78,7 +85,7 @@ func (r *rabbitmqBroker) Subscribe(topic, queue, appId string, h broker.Handler)
 		nil,      // arguments
 	)
 
-	q, _ := r.ch.QueueDeclare(
+	q, _ := ch.QueueDeclare(
 		queue, // name
 		true,  // durable
 		false, // delete when usused
@@ -87,7 +94,7 @@ func (r *rabbitmqBroker) Subscribe(topic, queue, appId string, h broker.Handler)
 		nil,   // arguments
 	)
 
-	r.ch.QueueBind(
+	ch.QueueBind(
 		q.Name, // queue name
 		"",     // routing key
 		topic,  // exchange
@@ -95,7 +102,7 @@ func (r *rabbitmqBroker) Subscribe(topic, queue, appId string, h broker.Handler)
 		nil,
 	)
 
-	consume, _ := r.ch.Consume(
+	consume, _ := ch.Consume(
 		q.Name, // queue
 		"",     // consumer
 		false,  // no-ack
@@ -105,24 +112,26 @@ func (r *rabbitmqBroker) Subscribe(topic, queue, appId string, h broker.Handler)
 		nil,    // args
 	)
 
-	go func() {
-		for d := range consume {
-			brokerMsg := &broker.Message{}
-			brokerMsg.Unmarshal(d.Body)
-			retryCount, err := h(topic, brokerMsg)
-			if err == nil {
-				d.Ack(false)
-			} else {
-				for i := 0; i < retryCount; i++ {
-					brokerMsg.Retry++
-					_, err := h(topic, brokerMsg)
-					if err == nil {
-						d.Ack(false)
-						break
+	for i := 0; i < size; i++ {
+		go func() {
+			for d := range consume {
+				brokerMsg := &broker.Message{}
+				brokerMsg.Unmarshal(d.Body)
+				retryCount, err := h(topic, brokerMsg)
+				if err == nil {
+					d.Ack(false)
+				} else {
+					for i := 0; i < retryCount; i++ {
+						brokerMsg.Retry++
+						_, err := h(topic, brokerMsg)
+						if err == nil {
+							d.Ack(false)
+							break
+						}
 					}
+					d.Reject(false)
 				}
-				d.Reject(false)
 			}
-		}
-	}()
+		}()
+	}
 }
