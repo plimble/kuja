@@ -1,7 +1,7 @@
 Kuja [![godoc badge](http://godoc.org/github.com/plimble/kuja?status.png)](http://godoc.org/github.com/plimble/kuja)
 ========
 
-Go webservice framework!
+Go webservice framework
 
 ##Features
 - Client
