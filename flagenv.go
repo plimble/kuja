@@ -7,7 +7,6 @@ import (
 
 type Config struct {
 	Addr           string
-	Advertise      string
 	ShutdownTimout time.Duration
 }
 
@@ -17,6 +16,5 @@ func FlaagEnv(fe *flagenv.FlagEnv) {
 	}
 
 	fe.AddString("addr", ":3000", "Listten address")
-	fe.AddString("advertise", "", "Advertise address to register")
 	fe.AddDuration("shutdown-timeout", 0, "Timeout on shutdown")
 }
