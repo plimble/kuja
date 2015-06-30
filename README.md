@@ -5,16 +5,16 @@ Go webservice framework
 
 ##Features
 - Client
-    - Reuqest/Async Requests
+    - Sync/Async Requests
     - Publish
     - Service Discovery/Watch
     - Encoder
     - Circuit breaker
 - Server
-    - HTTP POST like RPC style
+    - RPC HTTP
     - Publish/Subscribe Queue
     - Retries/Timeout Queue
-    - Graceful Shutdown
+    - Graceful Shutdown with timeout
     - Custom Error
     - Register Etcd/Consul and Hartbeat
     - Snappy
@@ -24,17 +24,14 @@ Go webservice framework
     - Metric
 
 ##TODO
-- Circuit breaker metric prometheus
+- Circuit breaker Metric
 - Metric
-- prometheus metric
 - Doc
 - Test
 
+##Plan
+- HTTP2
+
 ##Usage
 See in [example](https://github.com/plimble/kuja/tree/master/example)
-
-##Note
-This framwork is designed for internal services, no rate limit, connection limit and securities.
-Only have tls for protocal security. Please add api gateway or create securities by yourself.
-
 
