@@ -1,7 +1,6 @@
 package etcd
 
 import (
-	"encoding/json"
 	"errors"
 	"github.com/coreos/go-etcd/etcd"
 	"github.com/plimble/kuja/registry"
@@ -22,17 +21,6 @@ type EtcdRegistry struct {
 	services map[string]*registry.Service
 }
 
-func encode(s *registry.Node) string {
-	b, _ := json.Marshal(s)
-	return string(b)
-}
-
-func decode(ds string) *registry.Node {
-	var s *registry.Node
-	json.Unmarshal([]byte(ds), &s)
-	return s
-}
-
 func (e *EtcdRegistry) servicePath(s string) string {
 	return filepath.Join(e.prefix, s)
 }
@@ -48,14 +36,13 @@ func (e *EtcdRegistry) Register(node *registry.Node) error {
 
 	e.client.CreateDir(e.servicePath(node.Name), 0)
 
-	data := encode(node)
-	_, err := e.client.Create(e.nodePath(node.Name, node.Id), data, 120)
+	_, err := e.client.Create(e.nodePath(node.Name, node.Id), node.URL, 120)
 
 	go func() {
 		for {
 			select {
 			case <-time.After(time.Minute):
-				e.client.Set(e.nodePath(node.Name, node.Id), data, 120)
+				e.client.Set(e.nodePath(node.Name, node.Id), node.URL, 120)
 			}
 		}
 	}()
@@ -100,8 +87,9 @@ func (e *EtcdRegistry) GetService(name string) (*registry.Service, error) {
 		if n.Dir {
 			continue
 		}
-		n := decode(n.Value)
-		s.Nodes = append(s.Nodes, n)
+		node := &registry.Node{}
+		node.URL = n.Value
+		s.Nodes = append(s.Nodes, node)
 	}
 
 	return s, nil
@@ -134,7 +122,8 @@ func (e *EtcdRegistry) ListServices() ([]*registry.Service, error) {
 			service := &registry.Service{}
 			service.Name = strings.Replace(node.Key, e.prefix+"/", "", 1)
 			for _, subnode := range node.Nodes {
-				n := decode(subnode.Value)
+				n := &registry.Node{}
+				n.URL = subnode.Value
 				service.Nodes = append(service.Nodes, n)
 			}
 			services = append(services, service)

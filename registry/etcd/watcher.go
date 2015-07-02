@@ -25,10 +25,11 @@ func newEtcdWatcher(r *EtcdRegistry) (*etcdWatcher, error) {
 				continue
 			}
 
-			n := decode(resp.Node.Value)
-			if n == nil {
-				n = decode(resp.PrevNode.Value)
-				if n == nil {
+			n := &registry.Node{}
+			n.URL = resp.Node.Value
+			if resp.Node.Value == "" {
+				n.URL = resp.PrevNode.Value
+				if n.URL == "" {
 					continue
 				}
 			}
