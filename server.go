@@ -99,17 +99,12 @@ func (server *Server) Run(addr string, timeout time.Duration) {
 		l = netutil.LimitListener(l, srv.ListenLimit)
 	}
 
-	if err := server.startRegistry("http://", addr); err != nil {
+	if err := server.StartRegistry("http://", addr); err != nil {
 		log.Error(err)
 		return
 	}
 
-	if err := server.startBroker(); err != nil {
-		log.Error(err)
-		return
-	}
-
-	if err := server.startSubscribe(); err != nil {
+	if err := server.StartBroker(); err != nil {
 		log.Error(err)
 		return
 	}
@@ -117,8 +112,8 @@ func (server *Server) Run(addr string, timeout time.Duration) {
 	log.Infof("Start server id %s on %s", server.id, addr)
 	srv.Serve(l)
 	log.Info("Stop server")
-	server.stopRegistry()
-	server.stopBroker()
+	server.StopRegistry()
+	server.StopBroker()
 }
 
 func (server *Server) RunTLS(addr string, timeout time.Duration, certFile, keyFile string) {
@@ -155,17 +150,12 @@ func (server *Server) RunTLS(addr string, timeout time.Duration, certFile, keyFi
 
 	tlsListener := tls.NewListener(conn, config)
 
-	if err := server.startRegistry("https://", addr); err != nil {
+	if err := server.StartRegistry("https://", addr); err != nil {
 		log.Error(err)
 		return
 	}
 
-	if err := server.startBroker(); err != nil {
-		log.Error(err)
-		return
-	}
-
-	if err := server.startSubscribe(); err != nil {
+	if err := server.StartBroker(); err != nil {
 		log.Error(err)
 		return
 	}
@@ -173,11 +163,11 @@ func (server *Server) RunTLS(addr string, timeout time.Duration, certFile, keyFi
 	log.Infof("Start server id %s on %s", server.id, addr)
 	srv.Serve(tlsListener)
 	log.Info("Stop server")
-	server.stopRegistry()
-	server.stopBroker()
+	server.StopRegistry()
+	server.StopBroker()
 }
 
-func (server *Server) startRegistry(scheme, addr string) error {
+func (server *Server) StartRegistry(scheme, addr string) error {
 	if server.registry == nil {
 		return nil
 	}
@@ -211,7 +201,7 @@ func (server *Server) startRegistry(scheme, addr string) error {
 	return nil
 }
 
-func (server *Server) stopRegistry() {
+func (server *Server) StopRegistry() {
 	if server.registry != nil {
 		for _, service := range server.serviceMap {
 			if service.node == nil {
@@ -232,7 +222,7 @@ func (server *Server) stopRegistry() {
 	}
 }
 
-func (server *Server) startBroker() error {
+func (server *Server) StartBroker() error {
 	if server.broker == nil {
 		return nil
 	}
@@ -243,10 +233,12 @@ func (server *Server) startBroker() error {
 
 	log.Infof("Connected to broker")
 
+	return server.startSubscribe()
+
 	return nil
 }
 
-func (server *Server) stopBroker() {
+func (server *Server) StopBroker() {
 	if server.broker == nil {
 		return
 	}
