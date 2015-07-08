@@ -35,6 +35,7 @@ type Server struct {
 	serviceError    ServiceErrorFunc
 	subscriberError SubscriberErrorFunc
 	registry        registry.Registry
+	srv             *graceful.Server
 }
 
 func NewServer() *Server {
@@ -81,7 +82,7 @@ func (server *Server) Broker(b broker.Broker) {
 }
 
 func (server *Server) Run(addr string, timeout time.Duration) {
-	srv := &graceful.Server{
+	server.srv = &graceful.Server{
 		Timeout: timeout,
 		Server: &http.Server{
 			Addr:    addr,
@@ -95,29 +96,38 @@ func (server *Server) Run(addr string, timeout time.Duration) {
 		return
 	}
 
-	if srv.ListenLimit != 0 {
-		l = netutil.LimitListener(l, srv.ListenLimit)
+	if server.srv.ListenLimit != 0 {
+		l = netutil.LimitListener(l, server.srv.ListenLimit)
 	}
 
-	if err := server.StartRegistry("http://", addr); err != nil {
+	if err := server.startRegistry("http://", addr); err != nil {
 		log.Error(err)
 		return
 	}
 
-	if err := server.StartBroker(); err != nil {
+	if err := server.startBroker(); err != nil {
+		log.Error(err)
+		return
+	}
+
+	if err := server.startSubscribe(); err != nil {
 		log.Error(err)
 		return
 	}
 
 	log.Infof("Start server id %s on %s", server.id, addr)
-	srv.Serve(l)
+	server.srv.Serve(l)
 	log.Info("Stop server")
-	server.StopRegistry()
-	server.StopBroker()
+	server.stopRegistry()
+	server.stopBroker()
+}
+
+func (server *Server) Close() {
+	server.srv.Stop(0)
 }
 
 func (server *Server) RunTLS(addr string, timeout time.Duration, certFile, keyFile string) {
-	srv := &graceful.Server{
+	server.srv = &graceful.Server{
 		Timeout: timeout,
 		Server: &http.Server{
 			Addr:    addr,
@@ -126,8 +136,8 @@ func (server *Server) RunTLS(addr string, timeout time.Duration, certFile, keyFi
 	}
 
 	config := &tls.Config{}
-	if srv.TLSConfig != nil {
-		*config = *srv.TLSConfig
+	if server.srv.TLSConfig != nil {
+		*config = *server.srv.TLSConfig
 	}
 
 	if config.NextProtos == nil {
@@ -150,24 +160,29 @@ func (server *Server) RunTLS(addr string, timeout time.Duration, certFile, keyFi
 
 	tlsListener := tls.NewListener(conn, config)
 
-	if err := server.StartRegistry("https://", addr); err != nil {
+	if err := server.startRegistry("https://", addr); err != nil {
 		log.Error(err)
 		return
 	}
 
-	if err := server.StartBroker(); err != nil {
+	if err := server.startBroker(); err != nil {
+		log.Error(err)
+		return
+	}
+
+	if err := server.startSubscribe(); err != nil {
 		log.Error(err)
 		return
 	}
 
 	log.Infof("Start server id %s on %s", server.id, addr)
-	srv.Serve(tlsListener)
+	server.srv.Serve(tlsListener)
 	log.Info("Stop server")
-	server.StopRegistry()
-	server.StopBroker()
+	server.stopRegistry()
+	server.stopBroker()
 }
 
-func (server *Server) StartRegistry(scheme, addr string) error {
+func (server *Server) startRegistry(scheme, addr string) error {
 	if server.registry == nil {
 		return nil
 	}
@@ -201,7 +216,7 @@ func (server *Server) StartRegistry(scheme, addr string) error {
 	return nil
 }
 
-func (server *Server) StopRegistry() {
+func (server *Server) stopRegistry() {
 	if server.registry != nil {
 		for _, service := range server.serviceMap {
 			if service.node == nil {
@@ -222,7 +237,7 @@ func (server *Server) StopRegistry() {
 	}
 }
 
-func (server *Server) StartBroker() error {
+func (server *Server) startBroker() error {
 	if server.broker == nil {
 		return nil
 	}
@@ -233,12 +248,10 @@ func (server *Server) StartBroker() error {
 
 	log.Infof("Connected to broker")
 
-	return server.startSubscribe()
-
 	return nil
 }
 
-func (server *Server) StopBroker() {
+func (server *Server) stopBroker() {
 	if server.broker == nil {
 		return
 	}
