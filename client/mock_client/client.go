@@ -3,9 +3,6 @@ package mock_client
 import "github.com/plimble/kuja/client"
 import "github.com/stretchr/testify/mock"
 
-import "github.com/plimble/kuja/broker"
-import "github.com/plimble/kuja/encoder"
-
 type MockClient struct {
 	mock.Mock
 }
@@ -14,18 +11,12 @@ func NewMockClient() *MockClient {
 	return &MockClient{}
 }
 
-func (m *MockClient) Broker(b broker.Broker) {
-	m.Called(b)
-}
 func (m *MockClient) Publish(topic string, v interface{}, meta map[string]string) error {
 	ret := m.Called(topic, v, meta)
 
 	r0 := ret.Error(0)
 
 	return r0
-}
-func (m *MockClient) Encoder(enc encoder.Encoder) {
-	m.Called(enc)
 }
 func (m *MockClient) AsyncRequests(as []client.AsyncRequest) []client.AsyncResponse {
 	ret := m.Called(as)
@@ -37,9 +28,6 @@ func (m *MockClient) AsyncRequests(as []client.AsyncRequest) []client.AsyncRespo
 
 	return r0
 }
-func (m *MockClient) DefaultHeader(hdr map[string]string) {
-	m.Called(hdr)
-}
 func (m *MockClient) Request(service string, method string, reqv interface{}, respv interface{}, header map[string]string) (int, error) {
 	ret := m.Called(service, method, reqv, respv, header)
 
@@ -48,6 +36,6 @@ func (m *MockClient) Request(service string, method string, reqv interface{}, re
 
 	return r0, r1
 }
-func (m *MockClient) CircuitBrakerConfig(service string, config *client.CircuitBrakerConfig) {
-	m.Called(service, config)
+func (m *MockClient) Close() {
+	m.Called()
 }
