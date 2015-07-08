@@ -44,15 +44,15 @@ func (r *rabbitmqBroker) Close() {
 }
 
 func (r *rabbitmqBroker) Publish(topic string, msg *broker.Message) error {
-	r.ch.ExchangeDeclare(
-		topic,    // name
-		"fanout", // type
-		true,     // durable
-		false,    // auto-deleted
-		false,    // internal
-		false,    // no-wait
-		nil,      // arguments
-	)
+	// r.ch.ExchangeDeclare(
+	// 	topic,    // name
+	// 	"fanout", // type
+	// 	true,     // durable
+	// 	false,    // auto-deleted
+	// 	false,    // internal
+	// 	false,    // no-wait
+	// 	nil,      // arguments
+	// )
 
 	data, err := msg.Marshal()
 	if err != nil {
