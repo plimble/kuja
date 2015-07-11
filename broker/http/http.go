@@ -26,6 +26,14 @@ func NewBroker(addr string, bufsize int) *httpBroker {
 	}
 }
 
+func NewLocal() *httpBroker {
+	return &httpBroker{
+		addr:     "127.0.0.1:9999",
+		pool:     bpool.NewBufferPool(50),
+		handlers: make(map[string]map[string]broker.Handler),
+	}
+}
+
 func (h *httpBroker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var err error
 	topic := r.URL.Path[1:]
@@ -89,13 +97,14 @@ func (n *httpBroker) Publish(topic string, msg *broker.Message) error {
 	req, _ := http.NewRequest("POST", "http://"+n.addr+"/"+topic, buf)
 	resp, err := http.DefaultClient.Do(req)
 	n.pool.Put(buf)
+	if err != nil {
+		return err
+	}
+
 	buf = n.pool.Get()
 	buf.ReadFrom(resp.Body)
 	defer resp.Body.Close()
 	defer n.pool.Put(buf)
-	if err != nil {
-		return err
-	}
 
 	switch resp.StatusCode {
 	case 200:
