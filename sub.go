@@ -5,6 +5,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/plimble/kuja/broker"
 	"reflect"
+	"strings"
 	"time"
 )
 
@@ -123,6 +124,27 @@ func (server *Server) registerSub(method interface{}, s *subscriber) error {
 	return nil
 }
 
+func (server *Server) ServePubSub(topic string, msg []byte) error {
+	var err error
+
+	brokerMsg := &broker.Message{}
+	if err = brokerMsg.Unmarshal(msg); err != nil {
+		return err
+	}
+
+	err = nil
+	for key, handler := range server.subscriberMap {
+		if strings.HasPrefix(key, topic) {
+			_, err := handler.handler(topic, brokerMsg)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
 type subResponse struct {
 	retry int
 	err   error
@@ -169,6 +191,7 @@ func (server *Server) subscribeTimeout(s *subscriber) broker.Handler {
 			return resp.retry, resp.err
 		case <-time.After(s.timeout):
 			server.subscriberError(ctx.Id, ctx.Topic, ctx.Queue, errors.New("time out"))
+			return 0, errors.New("timeout")
 		}
 
 		return 0, nil
