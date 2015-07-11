@@ -10,7 +10,9 @@ type stubBroker struct {
 }
 
 func NewBroker() *stubBroker {
-	return &stubBroker{}
+	return &stubBroker{
+		handlers: make(map[string]map[string]broker.Handler),
+	}
 }
 
 func (s *stubBroker) Connect() error {
