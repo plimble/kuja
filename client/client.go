@@ -196,6 +196,10 @@ func (c *DefaultClient) Request(service, method string, reqv interface{}, respv 
 
 	select {
 	case resp := <-output:
+		if respv == nil {
+			resp.Body.Close()
+			return resp.StatusCode, nil
+		}
 		// success
 		buf.Reset()
 		buf.ReadFrom(resp.Body)
