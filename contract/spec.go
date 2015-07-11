@@ -37,13 +37,13 @@ type Interaction struct {
 	Request       *Request
 	Response      *Response
 	Publish       *Publish
-	Subscribes    []*Subscribe
 }
 
 type Request struct {
-	Metadata map[string]string
-	Method   string
-	Body     interface{}
+	Metadata       map[string]string
+	Method         string
+	Body           interface{}
+	ResponseObject interface{}
 }
 
 func (r *Request) Validate() error {
@@ -53,18 +53,18 @@ func (r *Request) Validate() error {
 	return errors.New(errs.Error())
 }
 
-func (r *Request) Marshal(codec int) ([]byte, error) {
-	switch codec {
-	case JSON:
-		return jsonEnc.Marshal(r.Body)
-	case PROTOBUF:
-		return protoEnc.Marshal(r.Body)
-	case GOGOPROTOBUF:
-		return gogoEnc.Marshal(r.Body)
-	}
+// func (r *Request) Marshal(codec int) ([]byte, error) {
+// 	switch codec {
+// 	case JSON:
+// 		return jsonEnc.Marshal(r.Body)
+// 	case PROTOBUF:
+// 		return protoEnc.Marshal(r.Body)
+// 	case GOGOPROTOBUF:
+// 		return gogoEnc.Marshal(r.Body)
+// 	}
 
-	return nil, errors.New("no codec")
-}
+// 	return nil, errors.New("no codec")
+// }
 
 type Response struct {
 	Metadata map[string]string
@@ -89,27 +89,4 @@ type Publish struct {
 	Metadata map[string]string
 	Topic    string
 	Message  interface{}
-}
-
-type Subscribe struct {
-	Queue string
-	Error error
-}
-
-type ContractManager struct {
-	contracts []*Contract
-}
-
-func New() *ContractManager {
-	return &ContractManager{}
-}
-
-type Option func(c *Contract)
-
-func (c *ContractManager) Add(contract *Contract) {
-	c.contracts = append(c.contracts, contract)
-}
-
-func (c *ContractManager) Get() []*Contract {
-	return c.contracts
 }
