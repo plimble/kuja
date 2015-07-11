@@ -1,24 +1,23 @@
 package contract
 
 import (
-	"errors"
-	"github.com/plimble/kuja/encoder/gogoproto"
-	"github.com/plimble/kuja/encoder/json"
-	"github.com/plimble/kuja/encoder/proto"
-	"gopkg.in/bluesuncorp/validator.v5"
+// "errors"
+// "github.com/plimble/kuja/encoder/gogoproto"
+// "github.com/plimble/kuja/encoder/json"
+// "github.com/plimble/kuja/encoder/proto"
 )
 
-const (
-	JSON = iota
-	PROTOBUF
-	GOGOPROTOBUF
-)
+// const (
+// 	JSON = iota
+// 	PROTOBUF
+// 	GOGOPROTOBUF
+// )
 
-var (
-	jsonEnc  = json.NewEncoder()
-	protoEnc = proto.NewEncoder()
-	gogoEnc  = gogoproto.NewEncoder()
-)
+// var (
+// 	jsonEnc  = json.NewEncoder()
+// 	protoEnc = proto.NewEncoder()
+// 	gogoEnc  = gogoproto.NewEncoder()
+// )
 
 type Contracts []*Contract
 
@@ -46,14 +45,19 @@ type Request struct {
 	ResponseObject interface{}
 }
 
-func (r *Request) Validate() error {
-	v := validator.New("validate", validator.BakedInValidators)
-	errs := v.Struct(r.Body)
-
-	return errors.New(errs.Error())
+type Response struct {
+	Metadata map[string]string
+	Body     interface{}
+	Error    error
 }
 
-// func (r *Request) Marshal(codec int) ([]byte, error) {
+type Publish struct {
+	Metadata map[string]string
+	Topic    string
+	Message  interface{}
+}
+
+// func Marshal(codec int) ([]byte, error) {
 // 	switch codec {
 // 	case JSON:
 // 		return jsonEnc.Marshal(r.Body)
@@ -66,13 +70,7 @@ func (r *Request) Validate() error {
 // 	return nil, errors.New("no codec")
 // }
 
-type Response struct {
-	Metadata map[string]string
-	Body     interface{}
-	Error    error
-}
-
-// func (r *Request) Unmarshal(codec int) error {
+// func Unmarshal(codec int) error {
 // 	switch codec {
 // 	case JSON:
 // 		return jsonEnc.Unmarshal(data, v)
@@ -84,9 +82,3 @@ type Response struct {
 
 // 	return nil, errors.New("no codec")
 // }
-
-type Publish struct {
-	Metadata map[string]string
-	Topic    string
-	Message  interface{}
-}
