@@ -85,16 +85,18 @@ func (s *StubClient) Request(service string, method string, reqv interface{}, re
 					return 500, inter.Response.Error
 				}
 
-				data, err := s.encoder.Marshal(inter.Response.Body)
-				if err != nil {
-					return 500, err
+				if inter.Response.Body != nil {
+					data, err := s.encoder.Marshal(inter.Response.Body)
+					if err != nil {
+						return 500, err
+					}
+
+					if err := s.encoder.Unmarshal(data, respv); err != nil {
+						return 500, err
+					}
 				}
 
-				if err := s.encoder.Unmarshal(data, respv); err != nil {
-					return 500, err
-				}
-
-				return 200, nil
+				return inter.Response.Status, nil
 			}
 		}
 	}

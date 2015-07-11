@@ -1,10 +1,14 @@
 package contract
 
 import (
-// "errors"
-// "github.com/plimble/kuja/encoder/gogoproto"
-// "github.com/plimble/kuja/encoder/json"
-// "github.com/plimble/kuja/encoder/proto"
+	"github.com/plimble/kuja/client"
+	"github.com/stretchr/testify/assert"
+	"testing"
+
+	// "errors"
+	// "github.com/plimble/kuja/encoder/gogoproto"
+	// "github.com/plimble/kuja/encoder/json"
+	// "github.com/plimble/kuja/encoder/proto"
 )
 
 // const (
@@ -38,6 +42,27 @@ type Interaction struct {
 	Publish       *Publish
 }
 
+func (c *Contract) ContractTest(t *testing.T, kujaClient client.Client) {
+	for _, inter := range c.Interactions {
+		switch {
+		case inter.Publish != nil:
+			err := kujaClient.Publish(inter.Publish.Topic, inter.Publish.Message, inter.Publish.Metadata)
+			assert.NoError(t, err)
+		case inter.Request != nil:
+			status, err := kujaClient.Request(
+				c.Provider,
+				inter.Request.Method,
+				inter.Request.Body,
+				inter.Request.ResponseObject,
+				inter.Request.Metadata,
+			)
+
+			assert.NoError(t, err)
+			assert.Equal(t, inter.Response.Status, status)
+		}
+	}
+}
+
 type Request struct {
 	Metadata       map[string]string
 	Method         string
@@ -47,6 +72,7 @@ type Request struct {
 
 type Response struct {
 	Metadata map[string]string
+	Status   int
 	Body     interface{}
 	Error    error
 }
