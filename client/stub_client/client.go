@@ -1,4 +1,4 @@
-package stub
+package stub_client
 
 import (
 	"errors"
