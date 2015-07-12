@@ -70,6 +70,10 @@ func NewServer() *Server {
 	return server
 }
 
+func (server *Server) Id() string {
+	return server.id
+}
+
 func (server *Server) Use(h ...Handler) {
 	server.middleware = append(server.middleware, h...)
 }
