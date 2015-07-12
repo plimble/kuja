@@ -56,7 +56,7 @@ func defaulServiceErr(serviceID, service, method string, status int, err error) 
 
 func (server *Server) Service(service interface{}, h ...Handler) {
 	if err := server.register(service, "", false, h); err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 }
 

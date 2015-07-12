@@ -57,7 +57,7 @@ func (server *Server) SubscriberError(fn SubscriberErrorFunc) {
 
 func (server *Server) Subscribe(topic, queue string, timeout time.Duration, size int, method interface{}) {
 	if topic == "" || queue == "" {
-		panic(errors.New("topic, queue should not be empty"))
+		log.Fatal("topic, queue should not be empty")
 	}
 
 	s := &subscriber{
@@ -68,7 +68,7 @@ func (server *Server) Subscribe(topic, queue string, timeout time.Duration, size
 	}
 
 	if err := server.registerSub(method, s); err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 }
 
