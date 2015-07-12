@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	log "github.com/Sirupsen/logrus"
 	"github.com/golang/snappy/snappy"
+	"github.com/plimble/errors"
 	"github.com/plimble/kuja/broker"
 	"github.com/plimble/kuja/encoder"
 	"github.com/plimble/kuja/encoder/json"
@@ -371,10 +372,10 @@ func (server *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 }
 
 func respError(err error, ctx *Context) {
-	if errs, ok := err.(Errors); ok {
+	if errs, ok := err.(errors.Error); ok {
 		ctx.isResp = true
-		go ctx.serviceError(ctx.ServiceID, ctx.ServiceName, ctx.MethodName, errs.Status(), err)
-		ctx.w.WriteHeader(errs.Status())
+		go ctx.serviceError(ctx.ServiceID, ctx.ServiceName, ctx.MethodName, errs.Code(), err)
+		ctx.w.WriteHeader(errs.Code())
 		ctx.w.Write([]byte(errs.Error()))
 	} else {
 		ctx.isResp = true
@@ -392,7 +393,7 @@ func serve(ctx *Context) error {
 	err := ctx.encoder.Decode(ctx.req.Body, argvInter)
 	ctx.req.Body.Close()
 	if err != nil {
-		return Error(500, "unable to encode response")
+		return errors.InternalError("unable to encode response")
 	}
 
 	function := ctx.mt.method.Func

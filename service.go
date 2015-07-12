@@ -1,8 +1,8 @@
 package kuja
 
 import (
-	"errors"
 	log "github.com/Sirupsen/logrus"
+	"github.com/plimble/errors"
 	"github.com/plimble/kuja/registry"
 	"github.com/satori/go.uuid"
 	"reflect"
@@ -40,10 +40,17 @@ func (server *Server) ServiceError(fn ServiceErrorFunc) {
 }
 
 func defaulServiceErr(serviceID, service, method string, status int, err error) {
-	if status == 500 {
-		log.Errorf("Service Error %s %s %s %d %s", serviceID, service, method, status, err)
+	if err2, ok := err.(errors.Error); ok {
+		switch err2.Code() {
+		case 400, 404:
+			log.Infof("Service Error %s %s %s %d %s", serviceID, service, method, status, err)
+		case 403, 401:
+			log.Warnf("Service Error %s %s %s %d %s", serviceID, service, method, status, err)
+		case 500:
+			log.Errorf("Service Error %s %s %s %d %s", serviceID, service, method, status, err)
+		}
 	} else {
-		log.Warnf("Service Error %s %s %s %d %s", serviceID, service, method, status, err)
+		log.Errorf("Service Error %s %s %s %d %s", serviceID, service, method, status, err)
 	}
 }
 
