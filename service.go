@@ -40,7 +40,11 @@ func (server *Server) ServiceError(fn ServiceErrorFunc) {
 }
 
 func defaulServiceErr(serviceID, service, method string, status int, err error) {
-	log.Infof("Service Error %s %s %s %d %s", serviceID, service, method, status, err)
+	if status == 500 {
+		log.Errorf("Service Error %s %s %s %d %s", serviceID, service, method, status, err)
+	} else {
+		log.Warnf("Service Error %s %s %s %d %s", serviceID, service, method, status, err)
+	}
 }
 
 func (server *Server) Service(service interface{}, h ...Handler) {
