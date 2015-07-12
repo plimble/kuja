@@ -20,9 +20,16 @@ import (
 	"time"
 )
 
+const (
+	DEVELOPMENT = "development"
+	STAGING     = "staging"
+	PRODUCTION  = "production"
+)
+
 type Handler func(ctx *Context, w http.ResponseWriter, r *http.Request) error
 
 type Server struct {
+	stage           string
 	id              string
 	pool            sync.Pool
 	middleware      []Handler
@@ -40,6 +47,7 @@ type Server struct {
 
 func NewServer() *Server {
 	server := &Server{
+		stage:           DEVELOPMENT,
 		id:              uuid.NewV1().String(),
 		serviceMap:      make(map[string]*service),
 		encoder:         json.NewEncoder(),
@@ -63,6 +71,10 @@ func NewServer() *Server {
 
 func (server *Server) Use(h ...Handler) {
 	server.middleware = append(server.middleware, h...)
+}
+
+func (server *Server) Stage(stage string) {
+	server.stage = stage
 }
 
 func (server *Server) Snappy(enable bool) {
@@ -115,7 +127,7 @@ func (server *Server) Run(addr string, timeout time.Duration) {
 		return
 	}
 
-	log.Infof("Start server id %s on %s", server.id, addr)
+	log.Infof("Start server id %s on %s stage %s", server.id, addr, server.stage)
 	server.srv.Serve(l)
 	log.Info("Stop server")
 	server.stopRegistry()
@@ -175,7 +187,7 @@ func (server *Server) RunTLS(addr string, timeout time.Duration, certFile, keyFi
 		return
 	}
 
-	log.Infof("Start server id %s on %s", server.id, addr)
+	log.Infof("Start server id %s on %s stage %s", server.id, addr, server.stage)
 	server.srv.Serve(tlsListener)
 	log.Info("Stop server")
 	server.stopRegistry()
