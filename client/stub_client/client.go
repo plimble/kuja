@@ -10,11 +10,11 @@ import (
 )
 
 type StubClient struct {
-	contracts contract.Contracts
+	contracts []contract.Contract
 	encoder   encoder.Encoder
 }
 
-func NewStubClient(contracts contract.Contracts, encoder encoder.Encoder) *StubClient {
+func NewStubClient(encoder encoder.Encoder, contracts ...contract.Contract) *StubClient {
 	return &StubClient{contracts, encoder}
 }
 
