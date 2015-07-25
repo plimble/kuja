@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	log "github.com/Sirupsen/logrus"
 	"github.com/golang/snappy/snappy"
+	"github.com/kr/pretty"
 	"github.com/plimble/errors"
 	"github.com/plimble/kuja/broker"
 	"github.com/plimble/kuja/encoder"
@@ -391,7 +392,7 @@ func respError(err error, ctx *Context) {
 
 func serve(ctx *Context) error {
 	argv := reflect.New(ctx.mt.ArgType.Elem())
-	replyv := reflect.New(ctx.mt.ReplyType.Elem())
+	var replyv interface{}
 
 	argvInter := argv.Interface()
 	err := ctx.encoder.Decode(ctx.req.Body, argvInter)
@@ -401,33 +402,48 @@ func serve(ctx *Context) error {
 	}
 
 	function := ctx.mt.method.Func
-	ctx.returnValues = function.Call([]reflect.Value{ctx.rcvr, ctx.mt.prepareContext(ctx), argv, replyv})
+	ctx.returnValues = function.Call([]reflect.Value{ctx.rcvr, ctx.mt.prepareContext(ctx), argv})
 
-	if ctx.returnValues[0].Interface() != nil {
-		return ctx.returnValues[0].Interface().(error)
+	if len(ctx.returnValues) == 1 {
+		if ctx.returnValues[0].Interface() != nil {
+			return ctx.returnValues[0].Interface().(error)
+		}
+	} else if len(ctx.returnValues) == 2 {
+		if ctx.returnValues[1].Interface() != nil {
+			return ctx.returnValues[1].Interface().(error)
+		}
+		replyv = ctx.returnValues[0].Interface()
 	}
+
+	pretty.Println(replyv)
 
 	for name, val := range ctx.RespMetadata {
 		ctx.w.Header().Set(name, val)
 	}
 
-	if ctx.snappy {
-		data, err := ctx.encoder.Marshal(replyv.Interface())
-		if err != nil {
-			return err
+	if replyv != nil {
+		if ctx.snappy {
+			data, err := ctx.encoder.Marshal(replyv)
+			if err != nil {
+				return err
+			}
+			data, err = snappy.Encode(nil, data)
+			if err != nil {
+				return err
+			}
+			ctx.isResp = true
+			ctx.w.Header().Set("Snappy", "true")
+			ctx.w.WriteHeader(200)
+			ctx.w.Write(data)
+		} else {
+			ctx.isResp = true
+			ctx.w.WriteHeader(200)
+			ctx.encoder.Encode(ctx.w, replyv)
 		}
-		data, err = snappy.Encode(nil, data)
-		if err != nil {
-			return err
-		}
-		ctx.isResp = true
-		ctx.w.Header().Set("Snappy", "true")
-		ctx.w.WriteHeader(200)
-		ctx.w.Write(data)
 	} else {
 		ctx.isResp = true
 		ctx.w.WriteHeader(200)
-		ctx.encoder.Encode(ctx.w, replyv.Interface())
+		ctx.w.Write(nil)
 	}
 
 	return nil

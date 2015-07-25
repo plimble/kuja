@@ -18,8 +18,8 @@ type AddService struct {
 	Client client.Client
 }
 
-func (s *AddService) Add(ctx *kuja.Context, req *AddReq, resp *AddResp) error {
+func (s *AddService) Add(ctx *kuja.Context, req *AddReq) (*AddResp, error) {
+	resp := &AddResp{}
 	resp.C = req.A + req.B
-	s.Client.Publish("AddService.added", req, nil)
-	return nil
+	return resp, nil
 }

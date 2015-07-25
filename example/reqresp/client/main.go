@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/plimble/kuja/client"
 	"github.com/plimble/kuja/example/reqresp"
-	"time"
 )
 
 func main() {
@@ -14,12 +13,6 @@ func main() {
 	}
 	defer c.Close()
 
-	for i := 0; i < 1000; i++ {
-		time.Sleep(time.Millisecond * 500)
-		resp := &reqresp.AddResp{}
-		status, err := c.Request("AddService", "Add", reqresp.AddReq{A: 5, B: 3}, resp, nil)
-		fmt.Println(resp, status, err)
-	}
 	resp := &reqresp.AddResp{}
 	status, err := c.Request("AddService", "Add", reqresp.AddReq{A: 5, B: 3}, resp, nil)
 

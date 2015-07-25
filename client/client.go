@@ -210,6 +210,11 @@ func (c *DefaultClient) Request(service, method string, reqv interface{}, respv 
 		}
 
 		respData := buf.Bytes()
+
+		if len(respData) == 0 {
+			return resp.StatusCode, nil
+		}
+
 		if resp.Header.Get("Snappy") == "true" {
 			respData, err = snappy.Decode(nil, buf.Bytes())
 			if err != nil {

@@ -6,7 +6,8 @@ import (
 
 type AddService struct{}
 
-func (s *AddService) Add(ctx *kuja.Context, req *AddReq, resp *AddResp) error {
+func (s *AddService) Add(ctx *kuja.Context, req *AddReq) (*AddResp, error) {
+	resp := &AddResp{}
 	resp.C = req.A + req.B
-	return nil
+	return resp, nil
 }

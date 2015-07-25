@@ -130,13 +130,44 @@ func prepareMethod(method reflect.Method) *methodType {
 	}
 
 	switch mtype.NumIn() {
-	case 4:
+	case 3:
 		// method that takes a context
-		argType = mtype.In(2)
-		replyType = mtype.In(3)
 		contextType = mtype.In(1)
+		argType = mtype.In(2)
+		// replyType = mtype.In(3)
 	default:
 		log.Errorln("method", mname, "of", mtype, "has wrong number of ins:", mtype.NumIn())
+		return nil
+	}
+
+	switch mtype.NumOut() {
+	case 1:
+		// The return type of the method must be error.
+		if returnType := mtype.Out(0); returnType != typeOfError {
+			log.Errorln("method", mname, "returns", returnType.String(), "not error")
+			return nil
+		}
+	case 2:
+		// The return type of the method must be error.
+		if returnType := mtype.Out(1); returnType != typeOfError {
+			log.Errorln("method", mname, "returns", returnType.String(), "not error")
+			return nil
+		}
+		replyType = mtype.Out(0)
+		// the second argument will tell us if it's a streaming call
+		// or a regular call
+		if replyType.Kind() != reflect.Ptr {
+			log.Errorln("method", mname, "reply type not a pointer:", replyType)
+			return nil
+		}
+
+		// Reply type must be exported.
+		if !isExportedOrBuiltinType(replyType) {
+			log.Errorln("method", mname, "reply type not exported:", replyType)
+			return nil
+		}
+	default:
+		log.Errorln("response", mname, "of", mtype, "has wrong number of ins:", mtype.NumOut())
 		return nil
 	}
 
@@ -146,28 +177,6 @@ func prepareMethod(method reflect.Method) *methodType {
 		return nil
 	}
 
-	// the second argument will tell us if it's a streaming call
-	// or a regular call
-	if replyType.Kind() != reflect.Ptr {
-		log.Errorln("method", mname, "reply type not a pointer:", replyType)
-		return nil
-	}
-
-	// Reply type must be exported.
-	if !isExportedOrBuiltinType(replyType) {
-		log.Errorln("method", mname, "reply type not exported:", replyType)
-		return nil
-	}
-	// Method needs one out.
-	if mtype.NumOut() != 1 {
-		log.Errorln("method", mname, "has wrong number of outs:", mtype.NumOut())
-		return nil
-	}
-	// The return type of the method must be error.
-	if returnType := mtype.Out(0); returnType != typeOfError {
-		log.Errorln("method", mname, "returns", returnType.String(), "not error")
-		return nil
-	}
 	return &methodType{method: method, ArgType: argType, ReplyType: replyType, ContextType: contextType, stream: stream}
 }
 
