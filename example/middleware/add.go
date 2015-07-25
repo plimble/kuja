@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"github.com/plimble/kuja"
-	"log"
 )
 
 type AddReq struct {
