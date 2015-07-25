@@ -402,7 +402,11 @@ func serve(ctx *Context) error {
 	}
 
 	function := ctx.mt.method.Func
-	ctx.returnValues = function.Call([]reflect.Value{ctx.rcvr, ctx.mt.prepareContext(ctx), argv})
+	if ctx.mt.ContextType == nil {
+		ctx.returnValues = function.Call([]reflect.Value{ctx.rcvr, argv})
+	} else {
+		ctx.returnValues = function.Call([]reflect.Value{ctx.rcvr, ctx.mt.prepareContext(ctx), argv})
+	}
 
 	if len(ctx.returnValues) == 1 {
 		if ctx.returnValues[0].Interface() != nil {

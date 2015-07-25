@@ -130,6 +130,8 @@ func prepareMethod(method reflect.Method) *methodType {
 	}
 
 	switch mtype.NumIn() {
+	case 2:
+		argType = mtype.In(1)
 	case 3:
 		// method that takes a context
 		contextType = mtype.In(1)
