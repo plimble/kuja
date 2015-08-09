@@ -432,10 +432,7 @@ func serve(ctx *Context) error {
 			if err != nil {
 				return err
 			}
-			data, err = snappy.Encode(nil, data)
-			if err != nil {
-				return err
-			}
+			data = snappy.Encode(nil, data)
 			ctx.isResp = true
 			ctx.w.Header().Set("Snappy", "true")
 			ctx.w.WriteHeader(200)
