@@ -3,12 +3,13 @@ package client
 import (
 	"bytes"
 	"errors"
-	"github.com/afex/hystrix-go/hystrix"
-	"github.com/golang/snappy/snappy"
-	"github.com/plimble/kuja/broker"
-	"github.com/plimble/kuja/registry"
 	"net/http"
 	"strings"
+
+	"github.com/afex/hystrix-go/hystrix"
+	"github.com/golang/snappy"
+	"github.com/plimble/kuja/broker"
+	"github.com/plimble/kuja/registry"
 )
 
 //go:generate mockery -name Client

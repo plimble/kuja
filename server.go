@@ -2,8 +2,16 @@ package kuja
 
 import (
 	"crypto/tls"
+	"io"
+	"net"
+	"net/http"
+	"reflect"
+	"strings"
+	"sync"
+	"time"
+
 	log "github.com/Sirupsen/logrus"
-	"github.com/golang/snappy/snappy"
+	"github.com/golang/snappy"
 	"github.com/kr/pretty"
 	"github.com/plimble/errors"
 	"github.com/plimble/kuja/broker"
@@ -13,13 +21,6 @@ import (
 	"github.com/satori/go.uuid"
 	"golang.org/x/net/netutil"
 	"gopkg.in/tylerb/graceful.v1"
-	"io"
-	"net"
-	"net/http"
-	"reflect"
-	"strings"
-	"sync"
-	"time"
 )
 
 const (
