@@ -12,7 +12,6 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/golang/snappy"
-	"github.com/kr/pretty"
 	"github.com/plimble/errors"
 	"github.com/plimble/kuja/broker"
 	"github.com/plimble/kuja/encoder"
@@ -419,8 +418,6 @@ func serve(ctx *Context) error {
 		}
 		replyv = ctx.returnValues[0].Interface()
 	}
-
-	pretty.Println(replyv)
 
 	for name, val := range ctx.RespMetadata {
 		ctx.w.Header().Set(name, val)
