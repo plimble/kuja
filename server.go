@@ -379,8 +379,8 @@ func (server *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 func respError(err error, ctx *Context) {
 	if errs, ok := err.(errors.Error); ok {
 		ctx.isResp = true
-		go ctx.serviceError(ctx.ServiceID, ctx.ServiceName, ctx.MethodName, errs.Code(), err)
-		ctx.w.WriteHeader(errs.Code())
+		go ctx.serviceError(ctx.ServiceID, ctx.ServiceName, ctx.MethodName, errs.Status(), err)
+		ctx.w.WriteHeader(errs.Status())
 		ctx.w.Write([]byte(errs.Error()))
 	} else {
 		ctx.isResp = true

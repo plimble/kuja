@@ -41,7 +41,7 @@ func (server *Server) ServiceError(fn ServiceErrorFunc) {
 
 func defaulServiceErr(serviceID, service, method string, status int, err error) {
 	if err2, ok := err.(errors.Error); ok {
-		switch err2.Code() {
+		switch err2.Status() {
 		case 400, 404:
 			log.Infof("Service Error %s %s %s %d %s", serviceID, service, method, status, err)
 		case 403, 401:
