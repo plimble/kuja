@@ -166,6 +166,8 @@ func (c *DefaultClient) Request(service, method string, reqv interface{}, respv 
 		return 0, err
 	}
 
+	req.Header.Set("Content-Type", c.Encoder.ContentType())
+
 	for name, val := range c.Header {
 		req.Header.Set(name, val)
 	}
