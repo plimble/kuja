@@ -23,6 +23,9 @@ type Context struct {
 	ServiceName  string
 	MethodName   string
 	isResp       bool
+	jsonEncoder  encoder.Encoder
+	protoEncoder encoder.Encoder
+	msgpEncoder  encoder.Encoder
 }
 
 func (ctx *Context) Next() error {

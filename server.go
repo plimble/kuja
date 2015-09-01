@@ -15,7 +15,9 @@ import (
 	"github.com/plimble/errors"
 	"github.com/plimble/kuja/broker"
 	"github.com/plimble/kuja/encoder"
+	"github.com/plimble/kuja/encoder/gogoproto"
 	"github.com/plimble/kuja/encoder/json"
+	"github.com/plimble/kuja/encoder/msgp"
 	"github.com/plimble/kuja/registry"
 	"github.com/satori/go.uuid"
 	"golang.org/x/net/netutil"
@@ -45,6 +47,9 @@ type Server struct {
 	subscriberError SubscriberErrorFunc
 	registry        registry.Registry
 	srv             *graceful.Server
+	jsonEncoder     encoder.Encoder
+	protoEncoder    encoder.Encoder
+	msgpEncoder     encoder.Encoder
 }
 
 func NewServer() *Server {
@@ -56,6 +61,9 @@ func NewServer() *Server {
 		serviceError:    defaulServiceErr,
 		subscriberError: defaulSubscriberErr,
 		subscriberMap:   make(map[string]*subscriber),
+		jsonEncoder:     json.NewEncoder(),
+		protoEncoder:    gogoproto.NewEncoder(),
+		msgpEncoder:     msgp.NewEncoder(),
 	}
 
 	server.pool.New = func() interface{} {
@@ -65,6 +73,9 @@ func NewServer() *Server {
 			returnValues: make([]reflect.Value, 1),
 			serviceError: server.serviceError,
 			isResp:       false,
+			jsonEncoder:  server.jsonEncoder,
+			protoEncoder: server.protoEncoder,
+			msgpEncoder:  server.msgpEncoder,
 		}
 	}
 
@@ -391,14 +402,26 @@ func respError(err error, ctx *Context) {
 }
 
 func serve(ctx *Context) error {
+	var err error
+	var encoderType encoder.Encoder
 	argv := reflect.New(ctx.mt.ArgType.Elem())
 	var replyv interface{}
 
 	argvInter := argv.Interface()
-	err := ctx.encoder.Decode(ctx.req.Body, argvInter)
+
+	contentType := ctx.req.Header.Get("Content-Type")
+	switch contentType {
+	case "application/json":
+		encoderType = ctx.jsonEncoder
+	case "application/proto":
+		encoderType = ctx.protoEncoder
+	case "application/msgp":
+		encoderType = ctx.msgpEncoder
+	}
+	err = encoderType.Decode(ctx.req.Body, argvInter)
 	ctx.req.Body.Close()
 	if err != nil {
-		return errors.InternalError("unable to encode response")
+		return errors.InternalError("unable to encode response " + contentType)
 	}
 
 	function := ctx.mt.method.Func
@@ -425,7 +448,7 @@ func serve(ctx *Context) error {
 
 	if replyv != nil {
 		if ctx.snappy {
-			data, err := ctx.encoder.Marshal(replyv)
+			data, err := encoderType.Marshal(replyv)
 			if err != nil {
 				return err
 			}
@@ -437,7 +460,7 @@ func serve(ctx *Context) error {
 		} else {
 			ctx.isResp = true
 			ctx.w.WriteHeader(200)
-			ctx.encoder.Encode(ctx.w, replyv)
+			encoderType.Encode(ctx.w, replyv)
 		}
 	} else {
 		ctx.isResp = true
