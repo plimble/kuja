@@ -404,6 +404,8 @@ func respError(err error, ctx *Context) {
 func serve(ctx *Context) error {
 	var err error
 	var encoderType encoder.Encoder
+	ctx.isResp = false
+
 	argv := reflect.New(ctx.mt.ArgType.Elem())
 	var replyv interface{}
 
