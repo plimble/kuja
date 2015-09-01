@@ -5,6 +5,7 @@ import (
 )
 
 type Encoder interface {
+	ContentType() string
 	Encode(w io.Writer, v interface{}) error
 	Decode(r io.Reader, v interface{}) error
 	Marshal(v interface{}) ([]byte, error)

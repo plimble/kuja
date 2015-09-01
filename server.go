@@ -18,6 +18,7 @@ import (
 	"github.com/plimble/kuja/encoder/gogoproto"
 	"github.com/plimble/kuja/encoder/json"
 	"github.com/plimble/kuja/encoder/msgp"
+	"github.com/plimble/kuja/encoder/proto"
 	"github.com/plimble/kuja/registry"
 	"github.com/satori/go.uuid"
 	"golang.org/x/net/netutil"
@@ -33,49 +34,52 @@ const (
 type Handler func(ctx *Context, w http.ResponseWriter, r *http.Request) error
 
 type Server struct {
-	stage           string
-	id              string
-	pool            sync.Pool
-	middleware      []Handler
-	mu              sync.Mutex // protects the serviceMap
-	serviceMap      map[string]*service
-	subscriberMap   map[string]*subscriber
-	broker          broker.Broker
-	encoder         encoder.Encoder
-	snappy          bool
-	serviceError    ServiceErrorFunc
-	subscriberError SubscriberErrorFunc
-	registry        registry.Registry
-	srv             *graceful.Server
-	jsonEncoder     encoder.Encoder
-	protoEncoder    encoder.Encoder
-	msgpEncoder     encoder.Encoder
+	stage            string
+	id               string
+	pool             sync.Pool
+	middleware       []Handler
+	mu               sync.Mutex // protects the serviceMap
+	serviceMap       map[string]*service
+	subscriberMap    map[string]*subscriber
+	broker           broker.Broker
+	encoder          encoder.Encoder
+	snappy           bool
+	serviceError     ServiceErrorFunc
+	subscriberError  SubscriberErrorFunc
+	registry         registry.Registry
+	srv              *graceful.Server
+	jsonEncoder      encoder.Encoder
+	protoEncoder     encoder.Encoder
+	gogoProtoEncoder encoder.Encoder
+	msgpEncoder      encoder.Encoder
 }
 
 func NewServer() *Server {
 	server := &Server{
-		stage:           DEVELOPMENT,
-		id:              uuid.NewV1().String(),
-		serviceMap:      make(map[string]*service),
-		encoder:         json.NewEncoder(),
-		serviceError:    defaulServiceErr,
-		subscriberError: defaulSubscriberErr,
-		subscriberMap:   make(map[string]*subscriber),
-		jsonEncoder:     json.NewEncoder(),
-		protoEncoder:    gogoproto.NewEncoder(),
-		msgpEncoder:     msgp.NewEncoder(),
+		stage:            DEVELOPMENT,
+		id:               uuid.NewV1().String(),
+		serviceMap:       make(map[string]*service),
+		encoder:          json.NewEncoder(),
+		serviceError:     defaulServiceErr,
+		subscriberError:  defaulSubscriberErr,
+		subscriberMap:    make(map[string]*subscriber),
+		jsonEncoder:      json.NewEncoder(),
+		protoEncoder:     proto.NewEncoder(),
+		gogoProtoEncoder: gogoproto.NewEncoder(),
+		msgpEncoder:      msgp.NewEncoder(),
 	}
 
 	server.pool.New = func() interface{} {
 		return &Context{
-			ReqMetadata:  make(Metadata),
-			RespMetadata: make(Metadata),
-			returnValues: make([]reflect.Value, 1),
-			serviceError: server.serviceError,
-			isResp:       false,
-			jsonEncoder:  server.jsonEncoder,
-			protoEncoder: server.protoEncoder,
-			msgpEncoder:  server.msgpEncoder,
+			ReqMetadata:      make(Metadata),
+			RespMetadata:     make(Metadata),
+			returnValues:     make([]reflect.Value, 1),
+			serviceError:     server.serviceError,
+			isResp:           false,
+			jsonEncoder:      server.jsonEncoder,
+			protoEncoder:     server.protoEncoder,
+			gogoProtoEncoder: server.gogoProtoEncoder,
+			msgpEncoder:      server.msgpEncoder,
 		}
 	}
 
@@ -417,6 +421,8 @@ func serve(ctx *Context) error {
 		encoderType = ctx.jsonEncoder
 	case "application/proto":
 		encoderType = ctx.protoEncoder
+	case "application/gogoproto":
+		encoderType = ctx.gogoProtoEncoder
 	case "application/msgp":
 		encoderType = ctx.msgpEncoder
 	}

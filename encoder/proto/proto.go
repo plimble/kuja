@@ -15,10 +15,14 @@ func NewEncoder() *ProtoEncoder {
 	return &ProtoEncoder{pool.NewBufferPool(512)}
 }
 
+func (e *ProtoEncoder) ContentType() string {
+	return "application/proto"
+}
+
 func (e *ProtoEncoder) Encode(w io.Writer, v interface{}) error {
 	pb, ok := v.(proto.Message)
 	if !ok {
-		errors.New("does not proto message interface")
+		return errors.New("does not proto message interface")
 	}
 
 	data, err := proto.Marshal(pb)
@@ -37,7 +41,7 @@ func (e *ProtoEncoder) Decode(r io.Reader, v interface{}) error {
 
 	pb, ok := v.(proto.Message)
 	if !ok {
-		errors.New("does not proto message interface")
+		return errors.New("does not proto message interface")
 	}
 
 	err := proto.Unmarshal(buf.Bytes(), pb)
@@ -49,7 +53,7 @@ func (e *ProtoEncoder) Decode(r io.Reader, v interface{}) error {
 func (e *ProtoEncoder) Marshal(v interface{}) ([]byte, error) {
 	pb, ok := v.(proto.Message)
 	if !ok {
-		errors.New("does not proto message interface")
+		return nil, errors.New("does not proto message interface")
 	}
 
 	return proto.Marshal(pb)
@@ -58,7 +62,7 @@ func (e *ProtoEncoder) Marshal(v interface{}) ([]byte, error) {
 func (e *ProtoEncoder) Unmarshal(data []byte, v interface{}) error {
 	pb, ok := v.(proto.Message)
 	if !ok {
-		errors.New("does not proto message interface")
+		return errors.New("does not proto message interface")
 	}
 
 	return proto.Unmarshal(data, pb)

@@ -12,6 +12,10 @@ func NewEncoder() *MsgpEncoder {
 	return &MsgpEncoder{}
 }
 
+func (e *MsgpEncoder) ContentType() string {
+	return "application/msgp"
+}
+
 func (e *MsgpEncoder) Encode(w io.Writer, v interface{}) error {
 	vMsgp, ok := v.(msgp.Encodable)
 	if !ok {

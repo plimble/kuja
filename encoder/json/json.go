@@ -11,6 +11,10 @@ func NewEncoder() *JsonEncoder {
 	return &JsonEncoder{}
 }
 
+func (e *JsonEncoder) ContentType() string {
+	return "application/json"
+}
+
 func (e *JsonEncoder) Encode(w io.Writer, v interface{}) error {
 	return json.NewEncoder(w).Encode(v)
 }

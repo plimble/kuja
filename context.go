@@ -7,25 +7,26 @@ import (
 )
 
 type Context struct {
-	ReqMetadata  Metadata
-	RespMetadata Metadata
-	index        int
-	handlers     []Handler
-	mt           *methodType
-	req          *http.Request
-	w            http.ResponseWriter
-	rcvr         reflect.Value
-	encoder      encoder.Encoder
-	returnValues []reflect.Value
-	snappy       bool
-	serviceError ServiceErrorFunc
-	ServiceID    string
-	ServiceName  string
-	MethodName   string
-	isResp       bool
-	jsonEncoder  encoder.Encoder
-	protoEncoder encoder.Encoder
-	msgpEncoder  encoder.Encoder
+	ReqMetadata      Metadata
+	RespMetadata     Metadata
+	index            int
+	handlers         []Handler
+	mt               *methodType
+	req              *http.Request
+	w                http.ResponseWriter
+	rcvr             reflect.Value
+	encoder          encoder.Encoder
+	returnValues     []reflect.Value
+	snappy           bool
+	serviceError     ServiceErrorFunc
+	ServiceID        string
+	ServiceName      string
+	MethodName       string
+	isResp           bool
+	jsonEncoder      encoder.Encoder
+	protoEncoder     encoder.Encoder
+	msgpEncoder      encoder.Encoder
+	gogoProtoEncoder encoder.Encoder
 }
 
 func (ctx *Context) Next() error {
