@@ -2,7 +2,9 @@ package client
 
 import (
 	"bytes"
-	"errors"
+	"github.com/plimble/errors"
+	"github.com/plimble/kuja/encoder"
+	"github.com/plimble/kuja/encoder/json"
 	"net/http"
 	"strings"
 
@@ -53,6 +55,7 @@ type DefaultClient struct {
 	method        Method
 	client        *http.Client
 	hystrixConfig map[string]struct{}
+	jsonEncoder   encoder.Encoder
 }
 
 func New(url string, opts ...Option) (Client, error) {
@@ -80,6 +83,7 @@ func New(url string, opts ...Option) (Client, error) {
 				TLSClientConfig: opt.TLSConfig,
 			},
 		},
+		jsonEncoder: json.NewEncoder(),
 	}, nil
 }
 
@@ -209,7 +213,14 @@ func (c *DefaultClient) Request(service, method string, reqv interface{}, respv 
 		resp.Body.Close()
 
 		if resp.StatusCode != 200 {
-			return resp.StatusCode, errors.New(string(buf.Bytes()))
+			switch resp.Header.Get("Content-Type") {
+			case "application/json; charset=utf-8":
+				errmsg := errors.New("")
+				c.jsonEncoder.Unmarshal(buf.Bytes(), &errmsg)
+				return resp.StatusCode, errmsg
+			case "text/plain; charset=utf-8":
+				return resp.StatusCode, errors.New(string(buf.Bytes()))
+			}
 		}
 
 		respData := buf.Bytes()

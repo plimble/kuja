@@ -395,11 +395,13 @@ func respError(err error, ctx *Context) {
 	if errs, ok := err.(errors.Error); ok {
 		ctx.isResp = true
 		go ctx.serviceError(ctx.ServiceID, ctx.ServiceName, ctx.MethodName, errs.Status(), err)
+		ctx.w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		ctx.w.WriteHeader(errs.Status())
-		ctx.w.Write([]byte(errs.Error()))
+		ctx.jsonEncoder.Encode(ctx.w, errs)
 	} else {
 		ctx.isResp = true
 		go ctx.serviceError(ctx.ServiceID, ctx.ServiceName, ctx.MethodName, 500, err)
+		ctx.w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		ctx.w.WriteHeader(500)
 		ctx.w.Write([]byte(err.Error()))
 	}
