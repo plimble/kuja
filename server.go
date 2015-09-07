@@ -427,6 +427,8 @@ func serve(ctx *Context) error {
 		encoderType = ctx.gogoProtoEncoder
 	case "application/msgp":
 		encoderType = ctx.msgpEncoder
+	default:
+		encoderType = ctx.jsonEncoder
 	}
 	err = encoderType.Decode(ctx.req.Body, argvInter)
 	ctx.req.Body.Close()
