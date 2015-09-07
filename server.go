@@ -466,16 +466,19 @@ func serve(ctx *Context) error {
 			}
 			data = snappy.Encode(nil, data)
 			ctx.isResp = true
+			ctx.w.Header().Set("Content-Type", contentType)
 			ctx.w.Header().Set("Snappy", "true")
 			ctx.w.WriteHeader(200)
 			ctx.w.Write(data)
 		} else {
 			ctx.isResp = true
+			ctx.w.Header().Set("Content-Type", contentType)
 			ctx.w.WriteHeader(200)
 			encoderType.Encode(ctx.w, replyv)
 		}
 	} else {
 		ctx.isResp = true
+		ctx.w.Header().Set("Content-Type", contentType)
 		ctx.w.WriteHeader(200)
 		ctx.w.Write(nil)
 	}
