@@ -138,7 +138,7 @@ func prepareMethod(method reflect.Method) *methodType {
 		argType = mtype.In(2)
 		// replyType = mtype.In(3)
 	default:
-		log.Errorln("method", mname, "of", mtype, "has wrong number of ins:", mtype.NumIn())
+		// log.Errorln("method", mname, "of", mtype, "has wrong number of ins:", mtype.NumIn())
 		return nil
 	}
 
@@ -146,30 +146,30 @@ func prepareMethod(method reflect.Method) *methodType {
 	case 1:
 		// The return type of the method must be error.
 		if returnType := mtype.Out(0); returnType != typeOfError {
-			log.Errorln("method", mname, "returns", returnType.String(), "not error")
+			// log.Errorln("method", mname, "returns", returnType.String(), "not error")
 			return nil
 		}
 	case 2:
 		// The return type of the method must be error.
 		if returnType := mtype.Out(1); returnType != typeOfError {
-			log.Errorln("method", mname, "returns", returnType.String(), "not error")
+			// log.Errorln("method", mname, "returns", returnType.String(), "not error")
 			return nil
 		}
 		replyType = mtype.Out(0)
 		// the second argument will tell us if it's a streaming call
 		// or a regular call
 		if replyType.Kind() != reflect.Ptr {
-			log.Errorln("method", mname, "reply type not a pointer:", replyType)
+			// log.Errorln("method", mname, "reply type not a pointer:", replyType)
 			return nil
 		}
 
 		// Reply type must be exported.
 		if !isExportedOrBuiltinType(replyType) {
-			log.Errorln("method", mname, "reply type not exported:", replyType)
+			// log.Errorln("method", mname, "reply type not exported:", replyType)
 			return nil
 		}
 	default:
-		log.Errorln("response", mname, "of", mtype, "has wrong number of ins:", mtype.NumOut())
+		// log.Errorln("response", mname, "of", mtype, "has wrong number of ins:", mtype.NumOut())
 		return nil
 	}
 
