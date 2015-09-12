@@ -378,6 +378,7 @@ func (server *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	ctx.ServiceID = s.id
 	ctx.ServiceName = serviceName
 	ctx.MethodName = methodName
+	ctx.isResp = false
 
 	if len(s.handlers) > 0 {
 		if err := s.handlers[0](ctx, w, req); err != nil && !ctx.isResp {
